@@ -136,6 +136,8 @@
     <button class="tab-btn" data-tab="stammdaten">Stammdaten</button>
     <button class="tab-btn" data-tab="report">Report</button>
     <button class="tab-btn" data-tab="vergleich">Vergleich</button>
+    <button class="tab-btn" data-tab="papierkorb">Papierkorb</button>
+    <button class="tab-btn" data-tab="protokoll">Protokoll</button>
   </div>
 
   <!-- ÜBERSICHT -->
@@ -328,6 +330,55 @@
     </div>
     <div id="compare-wrap" class="row" style="align-items:stretch;"></div>
   </div>
+
+  <!-- PAPIERKORB -->
+  <div id="tab-papierkorb" class="tab-panel card">
+    <div class="row" style="margin-bottom:16px;">
+      <button id="btn-refresh-trash" class="btn primary">Papierkorb aktualisieren</button>
+      <span class="small">Einträge werden nach 30 Tagen automatisch endgültig gelöscht.</span>
+    </div>
+
+    <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Gelöschte Fahrzeuge</div>
+    <table>
+      <colgroup><col style="width:34%"><col style="width:24%"><col style="width:14%"><col style="width:28%"></colgroup>
+      <thead><tr><th>Fahrzeug</th><th>Gelöscht am</th><th>Einträge</th><th></th></tr></thead>
+      <tbody id="trash-vehicles-tbody"></tbody>
+    </table>
+
+    <div style="font-weight:700; font-size:15px; margin:22px 0 8px;">Gelöschte Einträge</div>
+    <table>
+      <colgroup><col style="width:22%"><col style="width:14%"><col style="width:20%"><col style="width:16%"><col style="width:28%"></colgroup>
+      <thead><tr><th>Fahrzeug</th><th>Datum</th><th>Service</th><th>Gelöscht am</th><th></th></tr></thead>
+      <tbody id="trash-entries-tbody"></tbody>
+    </table>
+
+    <div style="font-weight:700; font-size:15px; margin:22px 0 8px;">Gelöschte Service-Arten</div>
+    <table>
+      <colgroup><col style="width:30%"><col style="width:26%"><col style="width:16%"><col style="width:28%"></colgroup>
+      <thead><tr><th>Fahrzeug</th><th>Service-Art</th><th>Gelöscht am</th><th></th></tr></thead>
+      <tbody id="trash-services-tbody"></tbody>
+    </table>
+
+    <div style="font-weight:700; font-size:15px; margin:22px 0 8px;">Gelöschte Marken</div>
+    <table>
+      <colgroup><col style="width:30%"><col style="width:26%"><col style="width:16%"><col style="width:28%"></colgroup>
+      <thead><tr><th>Fahrzeug</th><th>Marke</th><th>Gelöscht am</th><th></th></tr></thead>
+      <tbody id="trash-brands-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- PROTOKOLL -->
+  <div id="tab-protokoll" class="tab-panel card">
+    <div class="row" style="margin-bottom:16px;">
+      <button id="btn-refresh-log" class="btn primary">Protokoll aktualisieren</button>
+      <span class="small">Zeigt die letzten 200 Änderungen, neueste zuerst.</span>
+    </div>
+    <table>
+      <colgroup><col style="width:16%"><col style="width:20%"><col style="width:12%"><col style="width:18%"><col style="width:34%"></colgroup>
+      <thead><tr><th>Zeitpunkt</th><th>Wer</th><th>Aktion</th><th>Fahrzeug</th><th>Details</th></tr></thead>
+      <tbody id="log-tbody"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- MODAL: Eintrag hinzufügen/bearbeiten -->
@@ -439,6 +490,21 @@ const appScreen = $("app-screen");
 function showMsg(el, text, type) { el.innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ""; }
 function escapeHtml(str) { return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
 function userPath(...segments) { return ["users", currentUser.uid, ...segments].join("/"); }
+
+// ---------- ÄNDERUNGSPROTOKOLL ----------
+async function logChange(action, type, vehicleName, summary) {
+  try {
+    await set(push(ref(db, userPath("changelog"))), {
+      ts: Date.now(),
+      user: currentUser.email,
+      action, type, vehicleName: vehicleName || "", summary: summary || "",
+    });
+  } catch (e) { /* Protokoll-Fehler dürfen die eigentliche Aktion nie blockieren */ }
+}
+function fmtDateTime(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 // ---------- AUTH ----------
 onAuthStateChanged(auth, (user) => {
@@ -658,13 +724,28 @@ $("btn-new-vehicle").addEventListener("click", async () => {
     await set(sRef, s);
   }
   activeVehicleId = vRef.key;
+  await logChange("add", "vehicle", name, "Neues Fahrzeug angelegt");
 });
 
 $("btn-delete-vehicle").addEventListener("click", async () => {
   const targetId = activeVehicleId; // ID sofort fest einfrieren, bevor irgendein await läuft
   if (!targetId) return;
   const v = vehicles[targetId];
-  if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge, Service-Arten und Marken WIRKLICH unwiderruflich löschen?`)) return;
+  if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge, Service-Arten und Marken in den Papierkorb verschieben? (dort 30 Tage wiederherstellbar)`)) return;
+
+  const [entSnap, svcSnap, brSnap] = await Promise.all([
+    get(ref(db, userPath("entries", targetId))),
+    get(ref(db, userPath("services", targetId))),
+    get(ref(db, userPath("brands", targetId))),
+  ]);
+  await set(push(ref(db, userPath("trash", "vehicles"))), {
+    deletedAt: Date.now(),
+    vehicle: v,
+    entries: entSnap.val() || {},
+    services: svcSnap.val() || {},
+    brands: brSnap.val() || {},
+  });
+
   // Ein einziger atomarer Multi-Pfad-Löschbefehl statt mehrerer einzelner awaits -
   // verhindert, dass zwischenzeitliche Firebase-Updates die aktive Fahrzeug-ID verändern
   // und dadurch versehentlich ein anderes Fahrzeug getroffen wird.
@@ -674,6 +755,7 @@ $("btn-delete-vehicle").addEventListener("click", async () => {
   updates[`services/${targetId}`] = null;
   updates[`brands/${targetId}`] = null;
   await update(ref(db, userPath()), updates);
+  await logChange("delete", "vehicle", v?.name, "Fahrzeug in Papierkorb verschoben");
   if (activeVehicleId === targetId) activeVehicleId = null;
 });
 
@@ -731,6 +813,7 @@ $("btn-save-vehicle").addEventListener("click", async () => {
   if (logoState.changed) data.logo = logoState.value;
   await update(ref(db, userPath("vehicles", activeVehicleId)), data);
   logoState = { changed: false, value: "" };
+  await logChange("edit", "vehicle", data.name, "Fahrzeugdaten aktualisiert");
   showMsg2($("save-vehicle-msg"), "Gespeichert ✓");
   setTimeout(() => showMsg2($("save-vehicle-msg"), ""), 2000);
 });
@@ -825,19 +908,29 @@ $("modal-save-entry").addEventListener("click", async () => {
     service, brand: $("em-brand").value.trim(),
     parts: $("em-parts").value.trim(), notes: $("em-notes").value.trim(),
   };
+  const vName = vehicles[activeVehicleId]?.name || "";
   if (editingEntryId) {
     await update(ref(db, userPath("entries", activeVehicleId, editingEntryId)), data);
+    await logChange("edit", "entry", vName, `${date} – ${service}`);
   } else {
     data.ts = Date.now();
     await set(push(ref(db, userPath("entries", activeVehicleId))), data);
+    await logChange("add", "entry", vName, `${date} – ${service}`);
   }
   closeEntryModal();
 });
 
 $("modal-delete-entry").addEventListener("click", async () => {
   if (!editingEntryId) return;
-  if (!confirm("Diesen Eintrag wirklich löschen?")) return;
-  await remove(ref(db, userPath("entries", activeVehicleId, editingEntryId)));
+  if (!confirm("Diesen Eintrag in den Papierkorb verschieben?")) return;
+  const vid = activeVehicleId;
+  const entryData = entries[editingEntryId];
+  const vName = vehicles[vid]?.name || "";
+  await set(push(ref(db, userPath("trash", "entries"))), {
+    deletedAt: Date.now(), vehicleId: vid, vehicleName: vName, entry: entryData,
+  });
+  await remove(ref(db, userPath("entries", vid, editingEntryId)));
+  await logChange("delete", "entry", vName, `${entryData?.date || ""} – ${entryData?.service || ""}`);
   closeEntryModal();
 });
 
@@ -898,18 +991,28 @@ $("modal-save-service").addEventListener("click", async () => {
   const name = $("sm-name").value.trim();
   if (!name) { alert("Bitte einen Namen für die Service-Art angeben."); return; }
   const data = { name, intervalKm: Number($("sm-km").value) || 0, intervalMonths: Number($("sm-months").value) || 0 };
+  const vName = vehicles[activeVehicleId]?.name || "";
   if (editingServiceId) {
     await update(ref(db, userPath("services", activeVehicleId, editingServiceId)), data);
+    await logChange("edit", "service", vName, name);
   } else {
     await set(push(ref(db, userPath("services", activeVehicleId))), data);
+    await logChange("add", "service", vName, name);
   }
   closeServiceModal();
 });
 
 $("modal-delete-service").addEventListener("click", async () => {
   if (!editingServiceId) return;
-  if (!confirm("Diese Service-Art wirklich löschen?")) return;
-  await remove(ref(db, userPath("services", activeVehicleId, editingServiceId)));
+  if (!confirm("Diese Service-Art in den Papierkorb verschieben?")) return;
+  const vid = activeVehicleId;
+  const svcData = services[editingServiceId];
+  const vName = vehicles[vid]?.name || "";
+  await set(push(ref(db, userPath("trash", "services"))), {
+    deletedAt: Date.now(), vehicleId: vid, vehicleName: vName, service: svcData,
+  });
+  await remove(ref(db, userPath("services", vid, editingServiceId)));
+  await logChange("delete", "service", vName, svcData?.name || "");
   closeServiceModal();
 });
 
@@ -941,7 +1044,14 @@ function renderBrands() {
   });
   wrap.querySelectorAll("button").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await remove(ref(db, userPath("brands", activeVehicleId, btn.dataset.id)));
+      const vid = activeVehicleId;
+      const bData = brands[btn.dataset.id];
+      const vName = vehicles[vid]?.name || "";
+      await set(push(ref(db, userPath("trash", "brands"))), {
+        deletedAt: Date.now(), vehicleId: vid, vehicleName: vName, brand: bData,
+      });
+      await remove(ref(db, userPath("brands", vid, btn.dataset.id)));
+      await logChange("delete", "brand", vName, (typeof bData === "string" ? bData : bData?.name) || "");
     });
   });
 }
@@ -951,6 +1061,7 @@ $("btn-add-brand").addEventListener("click", async () => {
   const name = $("brand-name").value.trim();
   if (!name) return;
   await set(push(ref(db, userPath("brands", activeVehicleId))), { name });
+  await logChange("add", "brand", vehicles[activeVehicleId]?.name, name);
   $("brand-name").value = "";
 });
 
@@ -1054,6 +1165,8 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     $("tab-" + btn.dataset.tab).classList.add("active");
     if (btn.dataset.tab === "vergleich") buildCompare();
     if (btn.dataset.tab === "report") buildReport();
+    if (btn.dataset.tab === "papierkorb") buildTrash();
+    if (btn.dataset.tab === "protokoll") buildLog();
   });
 });
 
@@ -1162,6 +1275,172 @@ async function buildCompare() {
   }
   wrap.innerHTML = cards.join("") || `<div class="small">Keine Fahrzeuge vorhanden.</div>`;
 }
+
+// ---------- PAPIERKORB ----------
+const TRASH_MAX_AGE_MS = 30 * 86400000;
+
+async function buildTrash() {
+  const [tvSnap, teSnap, tsSnap, tbSnap] = await Promise.all([
+    get(ref(db, userPath("trash", "vehicles"))),
+    get(ref(db, userPath("trash", "entries"))),
+    get(ref(db, userPath("trash", "services"))),
+    get(ref(db, userPath("trash", "brands"))),
+  ]);
+  const trashVehicles = tvSnap.val() || {};
+  const trashEntries = teSnap.val() || {};
+  const trashServices = tsSnap.val() || {};
+  const trashBrands = tbSnap.val() || {};
+
+  // Automatisch aufräumen: älter als 30 Tage endgültig entfernen
+  const now = Date.now();
+  const purgeUpdates = {};
+  for (const [id, item] of Object.entries(trashVehicles)) {
+    if (now - (item.deletedAt || 0) > TRASH_MAX_AGE_MS) { purgeUpdates[`trash/vehicles/${id}`] = null; delete trashVehicles[id]; }
+  }
+  for (const [id, item] of Object.entries(trashEntries)) {
+    if (now - (item.deletedAt || 0) > TRASH_MAX_AGE_MS) { purgeUpdates[`trash/entries/${id}`] = null; delete trashEntries[id]; }
+  }
+  for (const [id, item] of Object.entries(trashServices)) {
+    if (now - (item.deletedAt || 0) > TRASH_MAX_AGE_MS) { purgeUpdates[`trash/services/${id}`] = null; delete trashServices[id]; }
+  }
+  for (const [id, item] of Object.entries(trashBrands)) {
+    if (now - (item.deletedAt || 0) > TRASH_MAX_AGE_MS) { purgeUpdates[`trash/brands/${id}`] = null; delete trashBrands[id]; }
+  }
+  if (Object.keys(purgeUpdates).length > 0) {
+    await update(ref(db, userPath()), purgeUpdates);
+  }
+
+  $("trash-vehicles-tbody").innerHTML = Object.entries(trashVehicles).map(([id, item]) => `
+    <tr>
+      <td>${escapeHtml(item.vehicle?.name || "")}</td>
+      <td class="nowrap">${fmtDateTime(item.deletedAt)}</td>
+      <td>${Object.keys(item.entries || {}).length}</td>
+      <td>
+        <button class="icon-btn" data-action="restore-vehicle" data-id="${id}">Wiederherstellen</button>
+        <button class="icon-btn" data-action="purge-vehicle" data-id="${id}">Endgültig löschen</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="4" class="small">Keine gelöschten Fahrzeuge.</td></tr>`;
+
+  $("trash-entries-tbody").innerHTML = Object.entries(trashEntries).map(([id, item]) => `
+    <tr>
+      <td>${escapeHtml(item.vehicleName || "")}</td>
+      <td class="nowrap">${escapeHtml(item.entry?.date || "")}</td>
+      <td>${escapeHtml(item.entry?.service || "")}</td>
+      <td class="nowrap">${fmtDateTime(item.deletedAt)}</td>
+      <td>
+        <button class="icon-btn" data-action="restore-entry" data-id="${id}">Wiederherstellen</button>
+        <button class="icon-btn" data-action="purge-entry" data-id="${id}">Endgültig löschen</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="5" class="small">Keine gelöschten Einträge.</td></tr>`;
+
+  $("trash-services-tbody").innerHTML = Object.entries(trashServices).map(([id, item]) => `
+    <tr>
+      <td>${escapeHtml(item.vehicleName || "")}</td>
+      <td>${escapeHtml(item.service?.name || "")}</td>
+      <td class="nowrap">${fmtDateTime(item.deletedAt)}</td>
+      <td>
+        <button class="icon-btn" data-action="restore-service" data-id="${id}">Wiederherstellen</button>
+        <button class="icon-btn" data-action="purge-service" data-id="${id}">Endgültig löschen</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="4" class="small">Keine gelöschten Service-Arten.</td></tr>`;
+
+  $("trash-brands-tbody").innerHTML = Object.entries(trashBrands).map(([id, item]) => `
+    <tr>
+      <td>${escapeHtml(item.vehicleName || "")}</td>
+      <td>${escapeHtml(typeof item.brand === "string" ? item.brand : (item.brand?.name || ""))}</td>
+      <td class="nowrap">${fmtDateTime(item.deletedAt)}</td>
+      <td>
+        <button class="icon-btn" data-action="restore-brand" data-id="${id}">Wiederherstellen</button>
+        <button class="icon-btn" data-action="purge-brand" data-id="${id}">Endgültig löschen</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="4" class="small">Keine gelöschten Marken.</td></tr>`;
+
+  document.querySelectorAll("#tab-papierkorb .icon-btn").forEach(btn => {
+    btn.addEventListener("click", () => handleTrashAction(btn.dataset.action, btn.dataset.id));
+  });
+}
+
+async function handleTrashAction(action, id) {
+  if (action === "restore-vehicle") {
+    const snap = await get(ref(db, userPath("trash", "vehicles", id)));
+    const item = snap.val();
+    if (!item) return;
+    const vRef = push(ref(db, userPath("vehicles")));
+    await set(vRef, item.vehicle || {});
+    if (item.entries) await set(ref(db, userPath("entries", vRef.key)), item.entries);
+    if (item.services) await set(ref(db, userPath("services", vRef.key)), item.services);
+    if (item.brands) await set(ref(db, userPath("brands", vRef.key)), item.brands);
+    await remove(ref(db, userPath("trash", "vehicles", id)));
+    await logChange("restore", "vehicle", item.vehicle?.name, "Fahrzeug aus Papierkorb wiederhergestellt");
+    buildTrash();
+  } else if (action === "purge-vehicle") {
+    if (!confirm("Endgültig löschen? Das kann nicht rückgängig gemacht werden.")) return;
+    await remove(ref(db, userPath("trash", "vehicles", id)));
+    buildTrash();
+  } else if (action === "restore-entry") {
+    const snap = await get(ref(db, userPath("trash", "entries", id)));
+    const item = snap.val();
+    if (!item) return;
+    if (!vehicles[item.vehicleId]) { alert("Das zugehörige Fahrzeug existiert nicht mehr - Wiederherstellung nicht möglich."); return; }
+    await set(push(ref(db, userPath("entries", item.vehicleId))), item.entry || {});
+    await remove(ref(db, userPath("trash", "entries", id)));
+    await logChange("restore", "entry", item.vehicleName, `${item.entry?.date || ""} – ${item.entry?.service || ""}`);
+    buildTrash();
+  } else if (action === "purge-entry") {
+    if (!confirm("Endgültig löschen?")) return;
+    await remove(ref(db, userPath("trash", "entries", id)));
+    buildTrash();
+  } else if (action === "restore-service") {
+    const snap = await get(ref(db, userPath("trash", "services", id)));
+    const item = snap.val();
+    if (!item) return;
+    if (!vehicles[item.vehicleId]) { alert("Das zugehörige Fahrzeug existiert nicht mehr - Wiederherstellung nicht möglich."); return; }
+    await set(push(ref(db, userPath("services", item.vehicleId))), item.service || {});
+    await remove(ref(db, userPath("trash", "services", id)));
+    await logChange("restore", "service", item.vehicleName, item.service?.name || "");
+    buildTrash();
+  } else if (action === "purge-service") {
+    if (!confirm("Endgültig löschen?")) return;
+    await remove(ref(db, userPath("trash", "services", id)));
+    buildTrash();
+  } else if (action === "restore-brand") {
+    const snap = await get(ref(db, userPath("trash", "brands", id)));
+    const item = snap.val();
+    if (!item) return;
+    if (!vehicles[item.vehicleId]) { alert("Das zugehörige Fahrzeug existiert nicht mehr - Wiederherstellung nicht möglich."); return; }
+    await set(push(ref(db, userPath("brands", item.vehicleId))), item.brand || {});
+    await remove(ref(db, userPath("trash", "brands", id)));
+    await logChange("restore", "brand", item.vehicleName, (typeof item.brand === "string" ? item.brand : item.brand?.name) || "");
+    buildTrash();
+  } else if (action === "purge-brand") {
+    if (!confirm("Endgültig löschen?")) return;
+    await remove(ref(db, userPath("trash", "brands", id)));
+    buildTrash();
+  }
+}
+
+$("btn-refresh-trash").addEventListener("click", buildTrash);
+
+// ---------- PROTOKOLL ----------
+function actionLabel(a) {
+  return { add: "Hinzugefügt", edit: "Bearbeitet", delete: "Gelöscht", restore: "Wiederhergestellt" }[a] || a;
+}
+
+async function buildLog() {
+  const snap = await get(ref(db, userPath("changelog")));
+  const log = snap.val() || {};
+  const rows = Object.values(log).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 200);
+  $("log-tbody").innerHTML = rows.map(l => `
+    <tr>
+      <td class="nowrap">${fmtDateTime(l.ts)}</td>
+      <td>${escapeHtml(l.user || "")}</td>
+      <td>${escapeHtml(actionLabel(l.action))}</td>
+      <td>${escapeHtml(l.vehicleName || "")}</td>
+      <td>${escapeHtml(l.summary || "")}</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="small">Noch keine Änderungen protokolliert.</td></tr>`;
+}
+
+$("btn-refresh-log").addEventListener("click", buildLog);
 
 // ---------- IMPORT / EXPORT ----------
 $("btn-export").addEventListener("click", async () => {
