@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Fahrzeug Service Tracker</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" type="image/png" href="./icon-192.png" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<meta name="theme-color" content="#16a34a" />
 <style>
   :root { --bg:#eef1f5; --panel:#ffffff; --panel-2:#f8fafc; --text:#111827; --muted:#6b7280; --accent:#16a34a; --border:#e2e5ea; --danger:#dc2626; --warn:#b45309; --ok:#16a34a; }
   * { box-sizing: border-box; }
@@ -34,6 +38,9 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
   th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; overflow: hidden; text-overflow: ellipsis; }
   th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  .sort-arrow { font-size: 10px; }
   tr:hover td { background: rgba(15,23,42,.03); }
   .hidden { display: none !important; }
   .msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
@@ -110,6 +117,7 @@
 
   <div id="global-msg"></div>
   <div id="backup-reminder" class="hidden"></div>
+  <div id="due-reminder" class="hidden"></div>
 
   <div class="card" id="vehicle-card">
     <div class="veh-select-wrap">
@@ -189,7 +197,13 @@
       </colgroup>
       <thead>
         <tr>
-          <th>Datum</th><th>km</th><th>Service</th><th>Teile</th><th>Marke</th><th>Notizen</th><th></th>
+          <th class="sortable" data-key="date">Datum <span class="sort-arrow"></span></th>
+          <th class="sortable" data-key="odo">km <span class="sort-arrow"></span></th>
+          <th class="sortable" data-key="service">Service <span class="sort-arrow"></span></th>
+          <th class="sortable" data-key="parts">Teile <span class="sort-arrow"></span></th>
+          <th class="sortable" data-key="brand">Marke <span class="sort-arrow"></span></th>
+          <th class="sortable" data-key="notes">Notizen <span class="sort-arrow"></span></th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="entries-tbody"></tbody>
@@ -413,6 +427,7 @@ let entries = {};
 let services = {};
 let brands = {};
 let vehiclesRefUnsub = null, entriesRefUnsub = null, servicesRefUnsub = null, brandsRefUnsub = null;
+let dueReminderChecked = false;
 let logoState = { changed: false, value: "" };
 let editingEntryId = null;
 let editingServiceId = null;
@@ -437,6 +452,8 @@ onAuthStateChanged(auth, (user) => {
   } else {
     appScreen.classList.add("hidden");
     loginScreen.classList.remove("hidden");
+    dueReminderChecked = false;
+    $("due-reminder").classList.add("hidden");
     [vehiclesRefUnsub, entriesRefUnsub, servicesRefUnsub, brandsRefUnsub].forEach(u => u && u());
     vehiclesRefUnsub = entriesRefUnsub = servicesRefUnsub = brandsRefUnsub = null;
     vehicles = {}; entries = {}; services = {}; brands = {}; activeVehicleId = null;
@@ -501,6 +518,44 @@ async function checkBackupReminder() {
   }
 }
 
+// ---------- FÄLLIG-HINWEIS ----------
+async function checkDueReminder() {
+  const banner = $("due-reminder");
+  const vIds = Object.keys(vehicles);
+  let dueCount = 0, soonCount = 0;
+  for (const vid of vIds) {
+    const v = vehicles[vid];
+    const [svcSnap, entSnap] = await Promise.all([
+      get(ref(db, userPath("services", vid))),
+      get(ref(db, userPath("entries", vid))),
+    ]);
+    const svcList = Object.values(svcSnap.val() || {});
+    const entList = Object.values(entSnap.val() || {});
+    const currentOdo = v.currentOdo || "";
+    const stichtag = v.asOfDate || new Date().toISOString().slice(0, 10);
+    svcList.forEach((s) => {
+      const r = statusForService(s, entList, currentOdo, stichtag);
+      if (r.status.cls === "danger") dueCount++;
+      else if (r.status.cls === "warn") soonCount++;
+    });
+  }
+  if (dueCount === 0 && soonCount === 0) { banner.classList.add("hidden"); return; }
+  const parts = [];
+  if (dueCount) parts.push(`${dueCount} fällig`);
+  if (soonCount) parts.push(`${soonCount} bald fällig`);
+  banner.innerHTML = `
+    <div class="msg warn">
+      <span>🔧 Service-Status über alle Fahrzeuge: ${parts.join(", ")}.</span>
+      <button id="btn-goto-vergleich" class="btn small primary">Zum Vergleich</button>
+      <button id="btn-dismiss-due" class="btn small ghost">Ausblenden</button>
+    </div>`;
+  banner.classList.remove("hidden");
+  $("btn-goto-vergleich").addEventListener("click", () => {
+    document.querySelector('.tab-btn[data-tab="vergleich"]').click();
+  });
+  $("btn-dismiss-due").addEventListener("click", () => banner.classList.add("hidden"));
+}
+
 // ---------- VEHICLES ----------
 function subscribeVehicles() {
   const vRef = ref(db, userPath("vehicles"));
@@ -530,6 +585,7 @@ function renderVehicleSelect() {
   if (!activeVehicleId || !vehicles[activeVehicleId]) activeVehicleId = ids[0];
   sel.value = activeVehicleId;
   onActiveVehicleChanged();
+  if (!dueReminderChecked) { dueReminderChecked = true; checkDueReminder(); }
 }
 
 $("vehicle-select").addEventListener("change", (e) => {
@@ -693,12 +749,23 @@ function subscribeEntries(vehicleId) {
   });
 }
 
+let entriesSortState = { key: "date", dir: "desc" };
+
 function renderEntries() {
   const tbody = $("entries-tbody");
   tbody.innerHTML = "";
   const ids = Object.keys(entries);
   $("entries-empty").classList.toggle("hidden", ids.length !== 0);
-  const sorted = ids.map(id => ({ id, ...entries[id] })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const { key, dir } = entriesSortState;
+  const mul = dir === "asc" ? 1 : -1;
+  const sorted = ids.map(id => ({ id, ...entries[id] })).sort((a, b) => {
+    if (key === "odo") return ((a.odo ?? -Infinity) - (b.odo ?? -Infinity)) * mul;
+    return String(a[key] || "").localeCompare(String(b[key] || "")) * mul;
+  });
+  document.querySelectorAll("#tab-eintraege th.sortable").forEach(th => {
+    const arrow = th.querySelector(".sort-arrow");
+    arrow.textContent = th.dataset.key === key ? (dir === "asc" ? "▲" : "▼") : "";
+  });
   sorted.forEach((entry) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -718,6 +785,18 @@ function renderEntries() {
 }
 
 $("btn-open-add-entry").addEventListener("click", () => openEntryModal(null));
+
+document.querySelectorAll("#tab-eintraege th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (entriesSortState.key === key) {
+      entriesSortState.dir = entriesSortState.dir === "asc" ? "desc" : "asc";
+    } else {
+      entriesSortState = { key, dir: "asc" };
+    }
+    renderEntries();
+  });
+});
 
 function openEntryModal(id) {
   editingEntryId = id || null;
