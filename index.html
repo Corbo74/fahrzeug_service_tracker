@@ -73,6 +73,10 @@
   .veh-logo-placeholder { width: 64px; height: 64px; border-radius: 12px; background: #eef1f5; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 26px; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 40px 16px; overflow-y: auto; }
   .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; width: 100%; max-width: 560px; box-shadow: 0 20px 50px rgba(15,23,42,.25); }
+  .photo-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .photo-thumb { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-thumb .remove-photo { position: absolute; top: 2px; right: 2px; background: rgba(220,38,38,.92); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; line-height: 16px; cursor: pointer; padding: 0; }
   .modal-title { font-weight: 700; font-size: 16px; margin-bottom: 14px; }
   @media print {
     body { background: #fff; color: #000; }
@@ -118,6 +122,7 @@
   <div id="global-msg"></div>
   <div id="backup-reminder" class="hidden"></div>
   <div id="due-reminder" class="hidden"></div>
+  <div id="share-invite-banner" class="hidden"></div>
 
   <div class="card" id="vehicle-card">
     <div class="veh-select-wrap">
@@ -247,9 +252,17 @@
       <span id="save-vehicle-msg" class="small"></span>
     </div>
 
+    <div style="font-weight:700; font-size:15px; margin:24px 0 10px;">Freigabe (Mehrbenutzer)</div>
+    <div id="share-owners-list" class="small" style="margin-bottom:10px;"></div>
+    <div class="row">
+      <div class="col"><label>E-Mail einer Person einladen</label><input id="share-invite-email" type="email" placeholder="name@beispiel.ch" /></div>
+      <button id="btn-send-invite" class="btn">Einladen</button>
+    </div>
+    <div id="share-invite-msg" class="small" style="margin-top:6px;"></div>
+
     <div class="danger-zone">
       <div class="title2">⚠ Gefahrenzone</div>
-      <div class="small" style="margin-bottom:10px;">Löscht dieses Fahrzeug inkl. aller Einträge, Service-Arten und Marken unwiderruflich.</div>
+      <div class="small" style="margin-bottom:10px;">Löscht dieses Fahrzeug inkl. aller Einträge, Service-Arten und Marken unwiderruflich - für ALLE Mit-Besitzer.</div>
       <button id="btn-delete-vehicle" class="btn danger">Dieses Fahrzeug löschen</button>
     </div>
   </div>
@@ -399,6 +412,13 @@
     <div class="row" style="margin-top:10px;">
       <div class="col"><label>Notizen</label><textarea id="em-notes"></textarea></div>
     </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col">
+        <label>Fotos / Dokumente (Rechnung, Quittung, Garantieschein, ...)</label>
+        <input id="em-photos-input" type="file" accept="image/*" multiple />
+        <div id="em-photos-preview" class="photo-grid"></div>
+      </div>
+    </div>
     <datalist id="service-list"></datalist>
     <datalist id="brand-list"></datalist>
     <div class="row" style="margin-top:18px;">
@@ -482,6 +502,7 @@ let dueReminderChecked = false;
 let logoState = { changed: false, value: "" };
 let editingEntryId = null;
 let editingServiceId = null;
+let currentEntryPhotos = {};
 
 const $ = (id) => document.getElementById(id);
 const loginScreen = $("login-screen");
@@ -490,6 +511,17 @@ const appScreen = $("app-screen");
 function showMsg(el, text, type) { el.innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ""; }
 function escapeHtml(str) { return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
 function userPath(...segments) { return ["users", currentUser.uid, ...segments].join("/"); }
+
+// ---------- Geteilte Datenpfade (Mehrbenutzer) ----------
+// Fahrzeuge, Einträge, Service-Arten und Marken liegen NICHT mehr unter /users/{uid}/...,
+// sondern in eigenen Top-Level-Bäumen mit einer "owners"-Map pro Fahrzeug. So können mehrere
+// Nutzer dasselbe Fahrzeug sehen/bearbeiten. Welche Fahrzeug-IDs ein Nutzer sehen darf, steht
+// in seinem privaten Index /users/{uid}/myVehicleIds.
+function vPath(...segments) { return ["vehicles", ...segments].join("/"); }
+function vEntriesPath(...segments) { return ["vehicleEntries", ...segments].join("/"); }
+function vServicesPath(...segments) { return ["vehicleServices", ...segments].join("/"); }
+function vBrandsPath(...segments) { return ["vehicleBrands", ...segments].join("/"); }
+function emailKey(email) { return String(email || "").trim().toLowerCase().replace(/\./g, ","); }
 
 // ---------- ÄNDERUNGSPROTOKOLL ----------
 async function logChange(action, type, vehicleName, summary) {
@@ -507,20 +539,25 @@ function fmtDateTime(ts) {
 }
 
 // ---------- AUTH ----------
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if (user) {
     loginScreen.classList.add("hidden");
     appScreen.classList.remove("hidden");
     $("user-email-label").textContent = user.email;
+    await registerUserDirectory();
+    await migrateToSharedStructure();
     subscribeVehicles();
     checkBackupReminder();
+    checkShareInvites();
   } else {
     appScreen.classList.add("hidden");
     loginScreen.classList.remove("hidden");
     dueReminderChecked = false;
     $("due-reminder").classList.add("hidden");
     [vehiclesRefUnsub, entriesRefUnsub, servicesRefUnsub, brandsRefUnsub].forEach(u => u && u());
+    Object.values(vehicleUnsubs).forEach(u => u && u());
+    vehicleUnsubs = {};
     vehiclesRefUnsub = entriesRefUnsub = servicesRefUnsub = brandsRefUnsub = null;
     vehicles = {}; entries = {}; services = {}; brands = {}; activeVehicleId = null;
   }
@@ -592,8 +629,8 @@ async function checkDueReminder() {
   for (const vid of vIds) {
     const v = vehicles[vid];
     const [svcSnap, entSnap] = await Promise.all([
-      get(ref(db, userPath("services", vid))),
-      get(ref(db, userPath("entries", vid))),
+      get(ref(db, vServicesPath(vid))),
+      get(ref(db, vEntriesPath(vid))),
     ]);
     const svcList = Object.values(svcSnap.val() || {});
     const entList = Object.values(entSnap.val() || {});
@@ -622,12 +659,155 @@ async function checkDueReminder() {
   $("btn-dismiss-due").addEventListener("click", () => banner.classList.add("hidden"));
 }
 
+// ---------- MEHRBENUTZER: Verzeichnis, Migration, Einladungen ----------
+
+// Jeder Nutzer trägt sich selbst mit E-Mail -> UID ein, damit andere ihn per E-Mail einladen können.
+async function registerUserDirectory() {
+  try {
+    await set(ref(db, `userDirectory/${emailKey(currentUser.email)}`), currentUser.uid);
+  } catch (e) { /* nicht kritisch für den Rest der App */ }
+}
+
+// Einmalige, sichere Migration: bestehende Daten unter /users/{uid}/vehicles(+entries+services+brands)
+// werden in die neue geteilte Struktur kopiert. Die ALTEN Daten bleiben unangetastet als Sicherheitsnetz
+// liegen (werden nicht gelöscht) - kostet etwas Speicherplatz, aber kein Risiko für Datenverlust.
+async function migrateToSharedStructure() {
+  const doneSnap = await get(ref(db, userPath("migratedToShared")));
+  if (doneSnap.val() === true) return;
+
+  const [oldVehiclesSnap, oldEntriesSnap, oldServicesSnap, oldBrandsSnap] = await Promise.all([
+    get(ref(db, userPath("vehicles"))),
+    get(ref(db, userPath("entries"))),
+    get(ref(db, userPath("services"))),
+    get(ref(db, userPath("brands"))),
+  ]);
+  const oldVehicles = oldVehiclesSnap.val() || {};
+  const oldEntries = oldEntriesSnap.val() || {};
+  const oldServices = oldServicesSnap.val() || {};
+  const oldBrands = oldBrandsSnap.val() || {};
+  const vehicleIds = Object.keys(oldVehicles);
+
+  for (const vid of vehicleIds) {
+    // Nur migrieren, wenn im neuen System noch nicht vorhanden (idempotent, falls die Migration
+    // z.B. durch einen Verbindungsabbruch mittendrin abgebrochen wäre)
+    const existsSnap = await get(ref(db, vPath(vid)));
+    if (existsSnap.exists()) continue;
+
+    const updates = {};
+    updates[`vehicles/${vid}`] = {
+      ...oldVehicles[vid],
+      owners: { [currentUser.uid]: true },
+      ownerEmails: { [currentUser.uid]: currentUser.email },
+    };
+    if (oldEntries[vid]) updates[`vehicleEntries/${vid}`] = oldEntries[vid];
+    if (oldServices[vid]) updates[`vehicleServices/${vid}`] = oldServices[vid];
+    if (oldBrands[vid]) updates[`vehicleBrands/${vid}`] = oldBrands[vid];
+    updates[`users/${currentUser.uid}/myVehicleIds/${vid}`] = true;
+    await update(ref(db), updates);
+  }
+  await set(ref(db, userPath("migratedToShared")), true);
+}
+
+async function checkShareInvites() {
+  const snap = await get(ref(db, `shareInvites/${currentUser.uid}`));
+  const invites = snap.val() || {};
+  const ids = Object.keys(invites);
+  const banner = $("share-invite-banner");
+  if (ids.length === 0) { banner.classList.add("hidden"); return; }
+  banner.innerHTML = ids.map(vid => {
+    const inv = invites[vid];
+    return `<div class="msg warn" style="margin-bottom:8px;">
+      <span>📨 ${escapeHtml(inv.fromEmail || "")} hat dir Zugriff auf "${escapeHtml(inv.vehicleName || "Fahrzeug")}" angeboten.</span>
+      <button class="btn small primary" data-action="accept-invite" data-vid="${vid}">Annehmen</button>
+      <button class="btn small ghost" data-action="decline-invite" data-vid="${vid}">Ablehnen</button>
+    </div>`;
+  }).join("");
+  banner.classList.remove("hidden");
+  banner.querySelectorAll('[data-action="accept-invite"]').forEach(btn => {
+    btn.addEventListener("click", () => acceptInvite(btn.dataset.vid));
+  });
+  banner.querySelectorAll('[data-action="decline-invite"]').forEach(btn => {
+    btn.addEventListener("click", () => declineInvite(btn.dataset.vid));
+  });
+}
+
+async function acceptInvite(vid) {
+  try {
+    await set(ref(db, `vehicles/${vid}/owners/${currentUser.uid}`), true);
+    await set(ref(db, `vehicles/${vid}/ownerEmails/${currentUser.uid}`), currentUser.email);
+    await set(ref(db, `users/${currentUser.uid}/myVehicleIds/${vid}`), true);
+    await remove(ref(db, `shareInvites/${currentUser.uid}/${vid}`));
+    checkShareInvites();
+  } catch (e) {
+    alert("Annehmen fehlgeschlagen: " + e.message);
+  }
+}
+async function declineInvite(vid) {
+  await remove(ref(db, `shareInvites/${currentUser.uid}/${vid}`));
+  checkShareInvites();
+}
+
+function renderShareOwners(v) {
+  const emails = Object.values(v?.ownerEmails || {});
+  $("share-owners-list").textContent = emails.length > 1
+    ? "Zugriff haben: " + emails.join(", ")
+    : "Nur du hast aktuell Zugriff.";
+}
+
+$("btn-send-invite").addEventListener("click", async () => {
+  if (!activeVehicleId) return;
+  const email = $("share-invite-email").value.trim();
+  if (!email) return;
+  showMsg2($("share-invite-msg"), "Suche Nutzer...");
+  const targetUid = (await get(ref(db, `userDirectory/${emailKey(email)}`))).val();
+  if (!targetUid) {
+    showMsg2($("share-invite-msg"), "Diese E-Mail hat sich noch nie in der App angemeldet. Person muss sich zuerst registrieren, danach erneut einladen.");
+    return;
+  }
+  if (targetUid === currentUser.uid) { showMsg2($("share-invite-msg"), "Das bist du selbst."); return; }
+  const vName = vehicles[activeVehicleId]?.name || "";
+  await set(ref(db, `shareInvites/${targetUid}/${activeVehicleId}`), {
+    fromEmail: currentUser.email, vehicleName: vName, ts: Date.now(),
+  });
+  await logChange("edit", "vehicle", vName, `Einladung an ${email} verschickt`);
+  showMsg2($("share-invite-msg"), "Einladung verschickt ✓");
+  $("share-invite-email").value = "";
+});
+
 // ---------- VEHICLES ----------
+let vehicleUnsubs = {}; // vid -> Unsubscribe-Funktion für /vehicles/{vid}
+
 function subscribeVehicles() {
-  const vRef = ref(db, userPath("vehicles"));
-  vehiclesRefUnsub = onValue(vRef, (snap) => {
-    vehicles = snap.val() || {};
-    renderVehicleSelect();
+  const idsRef = ref(db, `users/${currentUser.uid}/myVehicleIds`);
+  vehiclesRefUnsub = onValue(idsRef, (snap) => {
+    const ids = Object.keys(snap.val() || {});
+
+    // Abos für Fahrzeuge beenden, die nicht mehr in meiner Liste sind
+    for (const vid of Object.keys(vehicleUnsubs)) {
+      if (!ids.includes(vid)) {
+        vehicleUnsubs[vid]();
+        delete vehicleUnsubs[vid];
+        delete vehicles[vid];
+      }
+    }
+    // Neue Abos für neu hinzugekommene Fahrzeug-IDs starten
+    for (const vid of ids) {
+      if (!vehicleUnsubs[vid]) {
+        vehicleUnsubs[vid] = onValue(ref(db, vPath(vid)), (vsnap) => {
+          const val = vsnap.val();
+          if (val) {
+            vehicles[vid] = val;
+          } else {
+            // Fahrzeug existiert nicht mehr (z.B. von einem Mit-Besitzer gelöscht) -
+            // eigenen Index-Eintrag selbst aufräumen (immer erlaubt, da eigene Daten)
+            delete vehicles[vid];
+            remove(ref(db, `users/${currentUser.uid}/myVehicleIds/${vid}`)).catch(() => {});
+          }
+          renderVehicleSelect();
+        });
+      }
+    }
+    if (ids.length === 0) { vehicles = {}; renderVehicleSelect(); }
   });
 }
 
@@ -689,6 +869,7 @@ function loadVehicleIntoForm(id) {
   $("v-oil").value = v.oil || "";
   $("v-odo").value = v.currentOdo || "";
   $("v-notes").value = v.notes || "";
+  renderShareOwners(v);
   $("ov-odo").value = v.currentOdo || "";
   $("ov-date").value = v.asOfDate || new Date().toISOString().slice(0, 10);
   $("uebersicht-title").textContent = v.name || v.make || "Fahrzeug";
@@ -708,6 +889,7 @@ function clearVehicleForm() {
   ["v-name","v-make","v-model","v-year","v-plate","v-vin","v-engine","v-oil","v-odo","v-notes"].forEach(id => $(id).value = "");
   $("uebersicht-title").textContent = ""; $("uebersicht-meta").textContent = "";
   $("ent-title").textContent = ""; $("sd-title").textContent = "";
+  $("share-owners-list").textContent = "";
   setLogoDisplay($("v-logo-preview"), $("v-logo-placeholder"), "");
   setLogoDisplay($("ov-logo-img"), $("ov-logo-placeholder"), "");
   setLogoDisplay($("ent-logo-img"), $("ent-logo-placeholder"), "");
@@ -717,10 +899,16 @@ function clearVehicleForm() {
 $("btn-new-vehicle").addEventListener("click", async () => {
   const name = prompt("Name des neuen Fahrzeugs (z.B. Mercedes S211):");
   if (!name) return;
-  const vRef = push(ref(db, userPath("vehicles")));
-  await set(vRef, { name, make: "", model: "", year: "", plate: "", vin: "", engine: "", oil: "", currentOdo: "", asOfDate: new Date().toISOString().slice(0,10), notes: "" });
+  const vRef = push(ref(db, vPath()));
+  await set(vRef, {
+    name, make: "", model: "", year: "", plate: "", vin: "", engine: "", oil: "",
+    currentOdo: "", asOfDate: new Date().toISOString().slice(0,10), notes: "",
+    owners: { [currentUser.uid]: true },
+    ownerEmails: { [currentUser.uid]: currentUser.email },
+  });
+  await set(ref(db, `users/${currentUser.uid}/myVehicleIds/${vRef.key}`), true);
   for (const s of DEFAULT_SERVICES) {
-    const sRef = push(ref(db, userPath("services", vRef.key)));
+    const sRef = push(ref(db, vServicesPath(vRef.key)));
     await set(sRef, s);
   }
   activeVehicleId = vRef.key;
@@ -734,9 +922,9 @@ $("btn-delete-vehicle").addEventListener("click", async () => {
   if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge, Service-Arten und Marken in den Papierkorb verschieben? (dort 30 Tage wiederherstellbar)`)) return;
 
   const [entSnap, svcSnap, brSnap] = await Promise.all([
-    get(ref(db, userPath("entries", targetId))),
-    get(ref(db, userPath("services", targetId))),
-    get(ref(db, userPath("brands", targetId))),
+    get(ref(db, vEntriesPath(targetId))),
+    get(ref(db, vServicesPath(targetId))),
+    get(ref(db, vBrandsPath(targetId))),
   ]);
   await set(push(ref(db, userPath("trash", "vehicles"))), {
     deletedAt: Date.now(),
@@ -746,15 +934,17 @@ $("btn-delete-vehicle").addEventListener("click", async () => {
     brands: brSnap.val() || {},
   });
 
-  // Ein einziger atomarer Multi-Pfad-Löschbefehl statt mehrerer einzelner awaits -
+  // Ein einziger atomarer Multi-Pfad-Löschbefehl (root-verankert) statt mehrerer einzelner awaits -
   // verhindert, dass zwischenzeitliche Firebase-Updates die aktive Fahrzeug-ID verändern
-  // und dadurch versehentlich ein anderes Fahrzeug getroffen wird.
+  // und dadurch versehentlich ein anderes Fahrzeug getroffen wird. Betrifft auch Mit-Besitzer:
+  // deren eigener Index heilt sich beim nächsten Laden selbst (siehe subscribeVehicles).
   const updates = {};
   updates[`vehicles/${targetId}`] = null;
-  updates[`entries/${targetId}`] = null;
-  updates[`services/${targetId}`] = null;
-  updates[`brands/${targetId}`] = null;
-  await update(ref(db, userPath()), updates);
+  updates[`vehicleEntries/${targetId}`] = null;
+  updates[`vehicleServices/${targetId}`] = null;
+  updates[`vehicleBrands/${targetId}`] = null;
+  updates[`users/${currentUser.uid}/myVehicleIds/${targetId}`] = null;
+  await update(ref(db), updates);
   await logChange("delete", "vehicle", v?.name, "Fahrzeug in Papierkorb verschoben");
   if (activeVehicleId === targetId) activeVehicleId = null;
 });
@@ -811,7 +1001,7 @@ $("btn-save-vehicle").addEventListener("click", async () => {
     currentOdo: $("v-odo").value.trim(), notes: $("v-notes").value.trim(),
   };
   if (logoState.changed) data.logo = logoState.value;
-  await update(ref(db, userPath("vehicles", activeVehicleId)), data);
+  await update(ref(db, vPath(activeVehicleId)), data);
   logoState = { changed: false, value: "" };
   await logChange("edit", "vehicle", data.name, "Fahrzeugdaten aktualisiert");
   showMsg2($("save-vehicle-msg"), "Gespeichert ✓");
@@ -824,7 +1014,7 @@ function showMsg2(el, text) { el.textContent = text || ""; }
 function subscribeEntries(vehicleId) {
   if (entriesRefUnsub) { entriesRefUnsub(); entriesRefUnsub = null; }
   if (!vehicleId) { entries = {}; renderEntries(); renderOverview(); return; }
-  const eRef = ref(db, userPath("entries", vehicleId));
+  const eRef = ref(db, vEntriesPath(vehicleId));
   entriesRefUnsub = onValue(eRef, (snap) => {
     entries = snap.val() || {};
     renderEntries();
@@ -851,6 +1041,7 @@ function renderEntries() {
   });
   sorted.forEach((entry) => {
     const tr = document.createElement("tr");
+    const photoCount = entry.photos ? Object.keys(entry.photos).length : 0;
     tr.innerHTML = `
       <td class="nowrap">${escapeHtml(entry.date || "")}</td>
       <td class="nowrap">${entry.odo != null ? Number(entry.odo).toLocaleString("de-CH") : ""}</td>
@@ -858,7 +1049,7 @@ function renderEntries() {
       <td>${escapeHtml(entry.parts || "")}</td>
       <td>${escapeHtml(entry.brand || "")}</td>
       <td>${escapeHtml(entry.notes || "")}</td>
-      <td><button class="icon-btn" data-id="${entry.id}">✎ Bearbeiten</button></td>
+      <td><button class="icon-btn" data-id="${entry.id}">✎ Bearbeiten${photoCount ? ` (📎${photoCount})` : ""}</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -891,10 +1082,44 @@ function openEntryModal(id) {
   $("em-brand").value = e.brand || "";
   $("em-parts").value = e.parts || "";
   $("em-notes").value = e.notes || "";
+  currentEntryPhotos = { ...(e.photos || {}) };
+  renderEntryPhotos();
   $("modal-delete-entry").classList.toggle("hidden", !id);
   $("entry-modal").classList.remove("hidden");
 }
-function closeEntryModal() { $("entry-modal").classList.add("hidden"); editingEntryId = null; }
+function closeEntryModal() { $("entry-modal").classList.add("hidden"); editingEntryId = null; currentEntryPhotos = {}; }
+
+function renderEntryPhotos() {
+  const wrap = $("em-photos-preview");
+  wrap.innerHTML = Object.entries(currentEntryPhotos).map(([pid, dataUrl]) => `
+    <div class="photo-thumb" data-id="${pid}">
+      <img src="${dataUrl}" alt="Foto" />
+      <button class="remove-photo" data-id="${pid}" title="Entfernen">✕</button>
+    </div>`).join("");
+  wrap.querySelectorAll("img").forEach(img => {
+    img.addEventListener("click", () => window.open(img.src, "_blank"));
+  });
+  wrap.querySelectorAll(".remove-photo").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      delete currentEntryPhotos[btn.dataset.id];
+      renderEntryPhotos();
+    });
+  });
+}
+
+$("em-photos-input").addEventListener("change", async (ev) => {
+  const files = Array.from(ev.target.files || []);
+  for (const f of files) {
+    try {
+      const dataUrl = await resizeImageToDataURL(f, 1000, 0.75);
+      const pid = "p" + Date.now() + Math.random().toString(36).slice(2, 7);
+      currentEntryPhotos[pid] = dataUrl;
+    } catch { /* einzelnes fehlerhaftes Bild überspringen */ }
+  }
+  renderEntryPhotos();
+  ev.target.value = "";
+});
 
 $("modal-cancel-entry").addEventListener("click", closeEntryModal);
 
@@ -907,14 +1132,15 @@ $("modal-save-entry").addEventListener("click", async () => {
     date, odo: $("em-odo").value ? Number($("em-odo").value) : null,
     service, brand: $("em-brand").value.trim(),
     parts: $("em-parts").value.trim(), notes: $("em-notes").value.trim(),
+    photos: Object.keys(currentEntryPhotos).length > 0 ? { ...currentEntryPhotos } : null,
   };
   const vName = vehicles[activeVehicleId]?.name || "";
   if (editingEntryId) {
-    await update(ref(db, userPath("entries", activeVehicleId, editingEntryId)), data);
+    await update(ref(db, vEntriesPath(activeVehicleId, editingEntryId)), data);
     await logChange("edit", "entry", vName, `${date} – ${service}`);
   } else {
     data.ts = Date.now();
-    await set(push(ref(db, userPath("entries", activeVehicleId))), data);
+    await set(push(ref(db, vEntriesPath(activeVehicleId))), data);
     await logChange("add", "entry", vName, `${date} – ${service}`);
   }
   closeEntryModal();
@@ -929,7 +1155,7 @@ $("modal-delete-entry").addEventListener("click", async () => {
   await set(push(ref(db, userPath("trash", "entries"))), {
     deletedAt: Date.now(), vehicleId: vid, vehicleName: vName, entry: entryData,
   });
-  await remove(ref(db, userPath("entries", vid, editingEntryId)));
+  await remove(ref(db, vEntriesPath(vid, editingEntryId)));
   await logChange("delete", "entry", vName, `${entryData?.date || ""} – ${entryData?.service || ""}`);
   closeEntryModal();
 });
@@ -938,7 +1164,7 @@ $("modal-delete-entry").addEventListener("click", async () => {
 function subscribeServices(vehicleId) {
   if (servicesRefUnsub) { servicesRefUnsub(); servicesRefUnsub = null; }
   if (!vehicleId) { services = {}; renderServices(); renderOverview(); renderServiceDatalist(); populateReportServiceSelect(); return; }
-  const sRef = ref(db, userPath("services", vehicleId));
+  const sRef = ref(db, vServicesPath(vehicleId));
   servicesRefUnsub = onValue(sRef, (snap) => {
     services = snap.val() || {};
     renderServices();
@@ -993,10 +1219,10 @@ $("modal-save-service").addEventListener("click", async () => {
   const data = { name, intervalKm: Number($("sm-km").value) || 0, intervalMonths: Number($("sm-months").value) || 0 };
   const vName = vehicles[activeVehicleId]?.name || "";
   if (editingServiceId) {
-    await update(ref(db, userPath("services", activeVehicleId, editingServiceId)), data);
+    await update(ref(db, vServicesPath(activeVehicleId, editingServiceId)), data);
     await logChange("edit", "service", vName, name);
   } else {
-    await set(push(ref(db, userPath("services", activeVehicleId))), data);
+    await set(push(ref(db, vServicesPath(activeVehicleId))), data);
     await logChange("add", "service", vName, name);
   }
   closeServiceModal();
@@ -1011,7 +1237,7 @@ $("modal-delete-service").addEventListener("click", async () => {
   await set(push(ref(db, userPath("trash", "services"))), {
     deletedAt: Date.now(), vehicleId: vid, vehicleName: vName, service: svcData,
   });
-  await remove(ref(db, userPath("services", vid, editingServiceId)));
+  await remove(ref(db, vServicesPath(vid, editingServiceId)));
   await logChange("delete", "service", vName, svcData?.name || "");
   closeServiceModal();
 });
@@ -1020,7 +1246,7 @@ $("modal-delete-service").addEventListener("click", async () => {
 function subscribeBrands(vehicleId) {
   if (brandsRefUnsub) { brandsRefUnsub(); brandsRefUnsub = null; }
   if (!vehicleId) { brands = {}; renderBrands(); renderBrandDatalist(); return; }
-  const bRef = ref(db, userPath("brands", vehicleId));
+  const bRef = ref(db, vBrandsPath(vehicleId));
   brandsRefUnsub = onValue(bRef, (snap) => {
     brands = snap.val() || {};
     renderBrands();
@@ -1050,7 +1276,7 @@ function renderBrands() {
       await set(push(ref(db, userPath("trash", "brands"))), {
         deletedAt: Date.now(), vehicleId: vid, vehicleName: vName, brand: bData,
       });
-      await remove(ref(db, userPath("brands", vid, btn.dataset.id)));
+      await remove(ref(db, vBrandsPath(vid, btn.dataset.id)));
       await logChange("delete", "brand", vName, (typeof bData === "string" ? bData : bData?.name) || "");
     });
   });
@@ -1060,7 +1286,7 @@ $("btn-add-brand").addEventListener("click", async () => {
   if (!activeVehicleId) return;
   const name = $("brand-name").value.trim();
   if (!name) return;
-  await set(push(ref(db, userPath("brands", activeVehicleId))), { name });
+  await set(push(ref(db, vBrandsPath(activeVehicleId))), { name });
   await logChange("add", "brand", vehicles[activeVehicleId]?.name, name);
   $("brand-name").value = "";
 });
@@ -1147,7 +1373,7 @@ function renderOverview() {
 
 $("btn-refresh-overview").addEventListener("click", async () => {
   if (activeVehicleId) {
-    await update(ref(db, userPath("vehicles", activeVehicleId)), {
+    await update(ref(db, vPath(activeVehicleId)), {
       currentOdo: $("ov-odo").value.trim(),
       asOfDate: $("ov-date").value,
     });
@@ -1230,8 +1456,8 @@ async function buildCompare() {
   for (const vid of vIds) {
     const v = vehicles[vid];
     const [svcSnap, entSnap] = await Promise.all([
-      get(ref(db, userPath("services", vid))),
-      get(ref(db, userPath("entries", vid))),
+      get(ref(db, vServicesPath(vid))),
+      get(ref(db, vEntriesPath(vid))),
     ]);
     const svcList = Object.values(svcSnap.val() || {});
     const entList = Object.values(entSnap.val() || {});
@@ -1365,11 +1591,12 @@ async function handleTrashAction(action, id) {
     const snap = await get(ref(db, userPath("trash", "vehicles", id)));
     const item = snap.val();
     if (!item) return;
-    const vRef = push(ref(db, userPath("vehicles")));
-    await set(vRef, item.vehicle || {});
-    if (item.entries) await set(ref(db, userPath("entries", vRef.key)), item.entries);
-    if (item.services) await set(ref(db, userPath("services", vRef.key)), item.services);
-    if (item.brands) await set(ref(db, userPath("brands", vRef.key)), item.brands);
+    const vRef = push(ref(db, vPath()));
+    await set(vRef, { ...(item.vehicle || {}), owners: { [currentUser.uid]: true }, ownerEmails: { [currentUser.uid]: currentUser.email } });
+    await set(ref(db, `users/${currentUser.uid}/myVehicleIds/${vRef.key}`), true);
+    if (item.entries) await set(ref(db, vEntriesPath(vRef.key)), item.entries);
+    if (item.services) await set(ref(db, vServicesPath(vRef.key)), item.services);
+    if (item.brands) await set(ref(db, vBrandsPath(vRef.key)), item.brands);
     await remove(ref(db, userPath("trash", "vehicles", id)));
     await logChange("restore", "vehicle", item.vehicle?.name, "Fahrzeug aus Papierkorb wiederhergestellt");
     buildTrash();
@@ -1382,7 +1609,7 @@ async function handleTrashAction(action, id) {
     const item = snap.val();
     if (!item) return;
     if (!vehicles[item.vehicleId]) { alert("Das zugehörige Fahrzeug existiert nicht mehr - Wiederherstellung nicht möglich."); return; }
-    await set(push(ref(db, userPath("entries", item.vehicleId))), item.entry || {});
+    await set(push(ref(db, vEntriesPath(item.vehicleId))), item.entry || {});
     await remove(ref(db, userPath("trash", "entries", id)));
     await logChange("restore", "entry", item.vehicleName, `${item.entry?.date || ""} – ${item.entry?.service || ""}`);
     buildTrash();
@@ -1395,7 +1622,7 @@ async function handleTrashAction(action, id) {
     const item = snap.val();
     if (!item) return;
     if (!vehicles[item.vehicleId]) { alert("Das zugehörige Fahrzeug existiert nicht mehr - Wiederherstellung nicht möglich."); return; }
-    await set(push(ref(db, userPath("services", item.vehicleId))), item.service || {});
+    await set(push(ref(db, vServicesPath(item.vehicleId))), item.service || {});
     await remove(ref(db, userPath("trash", "services", id)));
     await logChange("restore", "service", item.vehicleName, item.service?.name || "");
     buildTrash();
@@ -1408,7 +1635,7 @@ async function handleTrashAction(action, id) {
     const item = snap.val();
     if (!item) return;
     if (!vehicles[item.vehicleId]) { alert("Das zugehörige Fahrzeug existiert nicht mehr - Wiederherstellung nicht möglich."); return; }
-    await set(push(ref(db, userPath("brands", item.vehicleId))), item.brand || {});
+    await set(push(ref(db, vBrandsPath(item.vehicleId))), item.brand || {});
     await remove(ref(db, userPath("trash", "brands", id)));
     await logChange("restore", "brand", item.vehicleName, (typeof item.brand === "string" ? item.brand : item.brand?.name) || "");
     buildTrash();
@@ -1444,13 +1671,19 @@ $("btn-refresh-log").addEventListener("click", buildLog);
 
 // ---------- IMPORT / EXPORT ----------
 $("btn-export").addEventListener("click", async () => {
-  const [vSnap, eSnap, sSnap, bSnap] = await Promise.all([
-    get(ref(db, userPath("vehicles"))),
-    get(ref(db, userPath("entries"))),
-    get(ref(db, userPath("services"))),
-    get(ref(db, userPath("brands"))),
-  ]);
-  const payload = { vehicles: vSnap.val() || {}, entries: eSnap.val() || {}, services: sSnap.val() || {}, brands: bSnap.val() || {} };
+  const vehiclesOut = {}, entriesOut = {}, servicesOut = {}, brandsOut = {};
+  for (const vid of Object.keys(vehicles)) {
+    vehiclesOut[vid] = vehicles[vid];
+    const [eSnap, sSnap, bSnap] = await Promise.all([
+      get(ref(db, vEntriesPath(vid))),
+      get(ref(db, vServicesPath(vid))),
+      get(ref(db, vBrandsPath(vid))),
+    ]);
+    if (eSnap.exists()) entriesOut[vid] = eSnap.val();
+    if (sSnap.exists()) servicesOut[vid] = sSnap.val();
+    if (bSnap.exists()) brandsOut[vid] = bSnap.val();
+  }
+  const payload = { vehicles: vehiclesOut, entries: entriesOut, services: servicesOut, brands: brandsOut };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const today = new Date().toISOString().slice(0, 10); // JJJJ-MM-TT
   const a = document.createElement("a");
@@ -1470,8 +1703,8 @@ $("btn-export-excel").addEventListener("click", async () => {
 
   for (const [vid, v] of Object.entries(vehicles)) {
     const [entSnap, svcSnap] = await Promise.all([
-      get(ref(db, userPath("entries", vid))),
-      get(ref(db, userPath("services", vid))),
+      get(ref(db, vEntriesPath(vid))),
+      get(ref(db, vServicesPath(vid))),
     ]);
     const entList = Object.values(entSnap.val() || {})
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -1573,18 +1806,21 @@ $("import-file-input").addEventListener("change", async (ev) => {
         vehicleId = existingId;
         mergedCount++;
       } else {
-        const vRef = push(ref(db, userPath("vehicles")));
+        const vRef = push(ref(db, vPath()));
         await set(vRef, {
           name: vName, make: info.make || "", model: info.model || "", year: info.year || "",
           plate: info.plate || "", vin: info.vin || "", engine: info.engine || "",
           oil: info.oil || "", currentOdo: info.currentOdo || "",
           asOfDate: info.asOfDate || new Date().toISOString().slice(0,10),
           notes: info.notes || "", logo: info.logo || "",
+          owners: { [currentUser.uid]: true },
+          ownerEmails: { [currentUser.uid]: currentUser.email },
         });
+        await set(ref(db, `users/${currentUser.uid}/myVehicleIds/${vRef.key}`), true);
         vehicleId = vRef.key;
         newCount++;
         for (const e of v.entries) {
-          const eRef = push(ref(db, userPath("entries", vehicleId)));
+          const eRef = push(ref(db, vEntriesPath(vehicleId)));
           await set(eRef, {
             date: e.date || "", odo: e.odo ?? null, service: e.service || "",
             parts: e.parts || "", brand: e.brand || "", notes: e.notes || "", ts: e.ts || Date.now(),
@@ -1592,18 +1828,18 @@ $("import-file-input").addEventListener("change", async (ev) => {
         }
       }
 
-      const svcSnap = await get(ref(db, userPath("services", vehicleId)));
+      const svcSnap = await get(ref(db, vServicesPath(vehicleId)));
       const existingSvc = Object.values(svcSnap.val() || {}).map(s => s.name);
       for (const s of v.services) {
         if (!s.name || existingSvc.includes(s.name)) continue;
-        await set(push(ref(db, userPath("services", vehicleId))), { name: s.name, intervalKm: s.intervalKm || 0, intervalMonths: s.intervalMonths || 0 });
+        await set(push(ref(db, vServicesPath(vehicleId))), { name: s.name, intervalKm: s.intervalKm || 0, intervalMonths: s.intervalMonths || 0 });
       }
 
-      const brSnap = await get(ref(db, userPath("brands", vehicleId)));
+      const brSnap = await get(ref(db, vBrandsPath(vehicleId)));
       const existingBr = Object.values(brSnap.val() || {}).map(b => (typeof b === "string" ? b : b.name));
       for (const bName of v.brands) {
         if (!bName || existingBr.includes(bName)) continue;
-        await set(push(ref(db, userPath("brands", vehicleId))), { name: bName });
+        await set(push(ref(db, vBrandsPath(vehicleId))), { name: bName });
       }
     }
     alert(`Import abgeschlossen: ${newCount} neue(s) Fahrzeug(e), ${mergedCount} bestehende(s) ergänzt (Service-Arten/Marken).`);
