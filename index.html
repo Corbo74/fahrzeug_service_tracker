@@ -112,9 +112,11 @@
       <div class="sub" id="user-email-label"></div>
     </div>
     <div class="row" style="align-items:center;">
+      <button id="btn-help" class="btn">❓ Anleitung</button>
       <button id="btn-import" class="btn">JSON importieren</button>
       <button id="btn-export" class="btn">JSON exportieren</button>
       <button id="btn-export-excel" class="btn">Excel exportieren</button>
+      <button id="btn-change-password" class="btn">Passwort ändern</button>
       <button id="btn-logout" class="btn ghost">Abmelden</button>
     </div>
   </header>
@@ -450,6 +452,61 @@
   </div>
 </div>
 
+<!-- MODAL: Anleitung / Hilfe -->
+<div id="help-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:720px;">
+    <div class="modal-title">❓ Anleitung – So funktioniert der Fahrzeug Service Tracker</div>
+    <div style="max-height:65vh; overflow-y:auto; padding-right:6px; font-size:14px; line-height:1.6;">
+
+      <p><b>Grundprinzip:</b> Alle Änderungen werden sofort automatisch gespeichert (Cloud-Datenbank) – es gibt keinen "Speichern"-Knopf für die App als Ganzes, nur bei einzelnen Formularen.</p>
+
+      <h4>🚗 Fahrzeuge verwalten</h4>
+      <p>Oben im Dropdown wählst du das aktive Fahrzeug. "+ Neues Fahrzeug" legt ein weiteres an. Alle Tabs darunter (Übersicht, Einträge, ...) beziehen sich immer auf das gerade ausgewählte Fahrzeug.</p>
+
+      <h4>📋 Übersicht</h4>
+      <p>Zeigt pro Service-Art, wann der letzte Service war und wann der nächste fällig ist – berechnet aus deinen Einträgen und den Intervallen aus "Stammdaten". Ampel: <span class="status ok">grün = OK</span>, <span class="status warn">gelb = bald fällig</span>, <span class="status danger">rot = fällig</span>. "Aktueller km-Stand" und "Stichtag" solltest du ab und zu aktualisieren, damit die Berechnung stimmt.</p>
+
+      <h4>✏️ Einträge</h4>
+      <p>Die eigentliche Service-Historie: Datum, km-Stand, was gemacht wurde, welche Teile/Marke, Notizen und optional Fotos (Rechnung, Quittung, Garantieschein). "+ Eintrag hinzufügen" öffnet ein Formular. Zum Bearbeiten oder Löschen eines bestehenden Eintrags auf "✎ Bearbeiten" klicken – Löschen ist absichtlich nur von dort aus möglich, nicht direkt in der Tabelle. Spaltenköpfe anklicken sortiert die Tabelle.</p>
+
+      <h4>🚘 Fahrzeugdaten</h4>
+      <p>Stammdaten wie Marke, Modell, Kennzeichen, VIN, Logo/Bild. Hier auch: <b>Freigabe</b> (siehe unten) und ganz unten die <b>Gefahrenzone</b> zum Löschen des ganzen Fahrzeugs (landet im Papierkorb, nicht sofort weg).</p>
+
+      <h4>🔧 Stammdaten</h4>
+      <p>Die Liste der Service-Arten (z.B. Ölwechsel) mit ihren Intervallen (km und/oder Monate) – das ist die Grundlage für die Übersicht-Berechnung. Darunter eine Liste von Marken, die dir beim Ausfüllen eines Eintrags als Vorschlag angezeigt werden.</p>
+
+      <h4>🖨️ Report</h4>
+      <p>Erstellt einen druckbaren Bericht für einen Zeitraum (z.B. für die Werkstatt oder beim Verkauf): Von/Bis-Datum und optional nach einer Service-Art gefiltert, mit Zusammenfassung und Detailliste. "Drucken/PDF" nutzt die normale Browser-Druckfunktion (dort "Als PDF speichern" wählen für eine Datei).</p>
+
+      <h4>⚖️ Vergleich</h4>
+      <p>Zeigt alle deine Fahrzeuge nebeneinander mit den jeweils dringendsten fälligen Services – guter Überblick, wenn du mehrere Fahrzeuge hast.</p>
+
+      <h4>🗑️ Papierkorb</h4>
+      <p>Gelöschte Fahrzeuge, Einträge, Service-Arten und Marken landen hier für 30 Tage, bevor sie automatisch endgültig gelöscht werden. Wiederherstellen oder sofort endgültig löschen ist jederzeit möglich. Der Papierkorb ist privat – was du löschst, sehen Mit-Besitzer eines geteilten Fahrzeugs nicht in ihrem Papierkorb.</p>
+
+      <h4>📜 Protokoll</h4>
+      <p>Zeigt die letzten 200 Änderungen: wer, wann, was gemacht hat – nützlich bei mehreren Nutzern oder um nachzuvollziehen, was sich getan hat.</p>
+
+      <h4>👥 Freigabe (Mehrbenutzer)</h4>
+      <p>Im Tab "Fahrzeugdaten" kannst du ein Fahrzeug mit einer anderen Person teilen: E-Mail eingeben und "Einladen". <b>Wichtig:</b> Es wird keine echte E-Mail verschickt – die eingeladene Person muss sich einmal selbst in dieser App registriert haben, dann sieht sie beim nächsten Login oben ein Banner "Annehmen/Ablehnen". Nach Annahme hat sie vollen Zugriff (ansehen und bearbeiten).</p>
+
+      <h4>💾 Backup (JSON / Excel exportieren)</h4>
+      <p>Lädt eine Sicherungsdatei mit allen deinen Fahrzeugdaten herunter. JSON kann später wieder importiert werden (auch als Wiederherstellung). Excel ist eher zum Ansehen/Weitergeben gedacht (ein Tabellenblatt pro Fahrzeug). Ein Hinweis-Banner erinnert automatisch, wenn länger kein Backup gemacht wurde.</p>
+
+      <h4>📱 Als App installieren</h4>
+      <p>Am Handy: Browser-Menü → "Zum Startbildschirm hinzufügen". Am PC (Chrome/Edge): Install-Symbol in der Adressleiste. Danach startet die App wie eine normale App, ohne Browser-Adressleiste.</p>
+
+      <h4>🔑 Passwort ändern</h4>
+      <p>Oben "Passwort ändern" klicken – du bekommst einen Link per E-Mail zugeschickt, über den du ein neues Passwort setzen kannst.</p>
+
+    </div>
+    <div class="row" style="margin-top:16px;">
+      <span style="flex:1;"></span>
+      <button id="btn-close-help" class="btn primary">Verstanden</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="import-file-input" accept="application/json" class="hidden" />
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -457,7 +514,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, signOut
+  createUserWithEmailAndPassword, signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getDatabase, ref, onValue, set, push, remove, update, get
@@ -589,6 +646,19 @@ $("btn-register").addEventListener("click", async () => {
 });
 
 $("btn-logout").addEventListener("click", () => signOut(auth));
+
+$("btn-change-password").addEventListener("click", async () => {
+  if (!confirm(`Passwort-Reset-Link an ${currentUser.email} senden?`)) return;
+  try {
+    await sendPasswordResetEmail(auth, currentUser.email);
+    alert(`E-Mail verschickt an ${currentUser.email}. Öffne den Link darin, um ein neues Passwort zu setzen.`);
+  } catch (e) {
+    alert("Fehler beim Senden: " + e.message);
+  }
+});
+
+$("btn-help").addEventListener("click", () => $("help-modal").classList.remove("hidden"));
+$("btn-close-help").addEventListener("click", () => $("help-modal").classList.add("hidden"));
 
 function friendlyAuthError(e) {
   const code = e.code || "";
@@ -1387,6 +1457,7 @@ $("btn-refresh-overview").addEventListener("click", async () => {
     });
   }
   renderOverview();
+  checkDueReminder();
 });
 $("ov-filter").addEventListener("change", renderOverview);
 
