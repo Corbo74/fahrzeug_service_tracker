@@ -103,6 +103,7 @@
     <div class="row" style="align-items:center;">
       <button id="btn-import" class="btn">JSON importieren</button>
       <button id="btn-export" class="btn">JSON exportieren</button>
+      <button id="btn-export-excel" class="btn">Excel exportieren</button>
       <button id="btn-logout" class="btn ghost">Abmelden</button>
     </div>
   </header>
@@ -366,6 +367,7 @@
 
 <input type="file" id="import-file-input" accept="application/json" class="hidden" />
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -1103,6 +1105,61 @@ $("btn-export").addEventListener("click", async () => {
 });
 
 $("btn-import").addEventListener("click", () => $("import-file-input").click());
+
+$("btn-export-excel").addEventListener("click", async () => {
+  const wb = XLSX.utils.book_new();
+  const usedNames = new Set();
+
+  for (const [vid, v] of Object.entries(vehicles)) {
+    const [entSnap, svcSnap] = await Promise.all([
+      get(ref(db, userPath("entries", vid))),
+      get(ref(db, userPath("services", vid))),
+    ]);
+    const entList = Object.values(entSnap.val() || {})
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    const svcList = Object.values(svcSnap.val() || {});
+
+    const rows = [
+      ["Fahrzeugdaten"], [],
+      ["Name", v.name || ""],
+      ["Marke", v.make || ""],
+      ["Modell", v.model || ""],
+      ["Baujahr", v.year || ""],
+      ["Kennzeichen", v.plate || ""],
+      ["VIN", v.vin || ""],
+      ["Motor", v.engine || ""],
+      ["Öl-Spezifikation", v.oil || ""],
+      ["Aktueller km-Stand", v.currentOdo || ""],
+      ["Stichtag", v.asOfDate ? fmtDate(v.asOfDate) : ""],
+      ["Notizen", v.notes || ""],
+      [], [],
+      ["Service-Intervalle"], [],
+      ["Service-Art", "Intervall (km)", "Intervall (Monate)"],
+      ...svcList.map(s => [s.name || "", s.intervalKm || "", s.intervalMonths || ""]),
+      [], [],
+      ["Einträge"], [],
+      ["Datum", "km-Stand", "Service-Art", "Teile", "Marke", "Notizen"],
+      ...entList.map(e => [e.date || "", e.odo ?? "", e.service || "", e.parts || "", e.brand || "", e.notes || ""]),
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [{ wch: 16 }, { wch: 12 }, { wch: 20 }, { wch: 32 }, { wch: 16 }, { wch: 40 }];
+
+    let sheetName = (v.name || v.make || "Fahrzeug").replace(/[:\\\/\?\*\[\]]/g, "").slice(0, 31) || "Fahrzeug";
+    let uniqueName = sheetName, i = 2;
+    while (usedNames.has(uniqueName)) { uniqueName = (sheetName.slice(0, 28) + "_" + i).slice(0, 31); i++; }
+    usedNames.add(uniqueName);
+
+    XLSX.utils.book_append_sheet(wb, ws, uniqueName);
+  }
+
+  if (wb.SheetNames.length === 0) { alert("Keine Fahrzeuge vorhanden."); return; }
+
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `${today}_fahrzeug-tracker-export.xlsx`);
+  await set(ref(db, userPath("meta", "lastExportTs")), Date.now());
+  $("backup-reminder").classList.add("hidden");
+});
 
 function normalizeImportData(data) {
   const list = [];
