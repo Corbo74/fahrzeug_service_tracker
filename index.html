@@ -546,7 +546,12 @@ onAuthStateChanged(auth, async (user) => {
     appScreen.classList.remove("hidden");
     $("user-email-label").textContent = user.email;
     await registerUserDirectory();
-    await migrateToSharedStructure();
+    try {
+      await migrateToSharedStructure();
+    } catch (e) {
+      console.error("Migration fehlgeschlagen:", e);
+      showMsg($("global-msg"), "Hinweis: Beim Übernehmen bestehender Daten gab es ein Problem. Deine Daten sind nicht verloren - bitte Claude Bescheid geben.", "error");
+    }
     subscribeVehicles();
     checkBackupReminder();
     checkShareInvites();
@@ -688,10 +693,11 @@ async function migrateToSharedStructure() {
   const vehicleIds = Object.keys(oldVehicles);
 
   for (const vid of vehicleIds) {
-    // Nur migrieren, wenn im neuen System noch nicht vorhanden (idempotent, falls die Migration
-    // z.B. durch einen Verbindungsabbruch mittendrin abgebrochen wäre)
-    const existsSnap = await get(ref(db, vPath(vid)));
-    if (existsSnap.exists()) continue;
+    // Bereits migriert? Der eigene Index ist immer lesbar (im Gegensatz zum neuen Fahrzeug-
+    // Knoten selbst, dessen Leseregel "muss Besitzer sein" bei noch nicht existierenden
+    // Fahrzeugen fälschlich verweigert - daher NICHT vPath(vid) zum Prüfen verwenden).
+    const idxSnap = await get(ref(db, `users/${currentUser.uid}/myVehicleIds/${vid}`));
+    if (idxSnap.exists()) continue;
 
     const updates = {};
     updates[`vehicles/${vid}`] = {
