@@ -622,6 +622,7 @@ onAuthStateChanged(auth, async (user) => {
     vehicleUnsubs = {};
     vehiclesRefUnsub = entriesRefUnsub = servicesRefUnsub = brandsRefUnsub = null;
     vehicles = {}; entries = {}; services = {}; brands = {}; activeVehicleId = null;
+    loadedVehicleIds = new Set();
   }
 });
 
@@ -855,6 +856,8 @@ $("btn-send-invite").addEventListener("click", async () => {
 // ---------- VEHICLES ----------
 let vehicleUnsubs = {}; // vid -> Unsubscribe-Funktion für /vehicles/{vid}
 
+let loadedVehicleIds = new Set();
+
 function subscribeVehicles() {
   const idsRef = ref(db, `users/${currentUser.uid}/myVehicleIds`);
   vehiclesRefUnsub = onValue(idsRef, (snap) => {
@@ -866,6 +869,7 @@ function subscribeVehicles() {
         vehicleUnsubs[vid]();
         delete vehicleUnsubs[vid];
         delete vehicles[vid];
+        loadedVehicleIds.delete(vid);
       }
     }
     // Neue Abos für neu hinzugekommene Fahrzeug-IDs starten
@@ -881,11 +885,18 @@ function subscribeVehicles() {
             delete vehicles[vid];
             remove(ref(db, `users/${currentUser.uid}/myVehicleIds/${vid}`)).catch(() => {});
           }
+          loadedVehicleIds.add(vid);
           renderVehicleSelect();
+          // Fällig-Check erst auslösen, wenn WIRKLICH alle Fahrzeuge mindestens einmal
+          // geladen wurden - sonst zählt er nur die zuerst eingetroffenen mit (Race Condition).
+          if (!dueReminderChecked && ids.every(id => loadedVehicleIds.has(id))) {
+            dueReminderChecked = true;
+            checkDueReminder();
+          }
         });
       }
     }
-    if (ids.length === 0) { vehicles = {}; renderVehicleSelect(); }
+    if (ids.length === 0) { vehicles = {}; renderVehicleSelect(); dueReminderChecked = true; checkDueReminder(); }
   });
 }
 
@@ -909,7 +920,6 @@ function renderVehicleSelect() {
   if (!activeVehicleId || !vehicles[activeVehicleId]) activeVehicleId = ids[0];
   sel.value = activeVehicleId;
   onActiveVehicleChanged();
-  if (!dueReminderChecked) { dueReminderChecked = true; checkDueReminder(); }
 }
 
 $("vehicle-select").addEventListener("change", (e) => {
