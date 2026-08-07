@@ -699,17 +699,19 @@ async function migrateToSharedStructure() {
     const idxSnap = await get(ref(db, `users/${currentUser.uid}/myVehicleIds/${vid}`));
     if (idxSnap.exists()) continue;
 
-    const updates = {};
-    updates[`vehicles/${vid}`] = {
+    // Schritt für Schritt statt einem einzigen kombinierten Multi-Pfad-Update:
+    // Erst das Fahrzeug selbst anlegen (das etabliert die Besitzrechte), DANACH erst
+    // Einträge/Service-Arten/Marken/Index schreiben - deren Regeln prüfen "bin ich Besitzer?"
+    // und müssen dafür die bereits abgeschlossene, erste Schreibung sehen können.
+    await set(ref(db, vPath(vid)), {
       ...oldVehicles[vid],
       owners: { [currentUser.uid]: true },
       ownerEmails: { [currentUser.uid]: currentUser.email },
-    };
-    if (oldEntries[vid]) updates[`vehicleEntries/${vid}`] = oldEntries[vid];
-    if (oldServices[vid]) updates[`vehicleServices/${vid}`] = oldServices[vid];
-    if (oldBrands[vid]) updates[`vehicleBrands/${vid}`] = oldBrands[vid];
-    updates[`users/${currentUser.uid}/myVehicleIds/${vid}`] = true;
-    await update(ref(db), updates);
+    });
+    if (oldEntries[vid]) await set(ref(db, vEntriesPath(vid)), oldEntries[vid]);
+    if (oldServices[vid]) await set(ref(db, vServicesPath(vid)), oldServices[vid]);
+    if (oldBrands[vid]) await set(ref(db, vBrandsPath(vid)), oldBrands[vid]);
+    await set(ref(db, `users/${currentUser.uid}/myVehicleIds/${vid}`), true);
   }
   await set(ref(db, userPath("migratedToShared")), true);
 }
