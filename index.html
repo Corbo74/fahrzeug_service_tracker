@@ -5,45 +5,75 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Fahrzeug Service Tracker</title>
 <style>
-  :root { --bg:#0f172a; --panel:#111827; --panel-2:#0b1220; --text:#e5e7eb; --muted:#94a3b8; --accent:#22c55e; --border:#1f2937; --danger:#ef4444; }
+  :root { --bg:#eef1f5; --panel:#ffffff; --panel-2:#f8fafc; --text:#111827; --muted:#6b7280; --accent:#16a34a; --border:#e2e5ea; --danger:#dc2626; --warn:#b45309; --ok:#16a34a; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: linear-gradient(180deg,var(--bg),#0b1020); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-  .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  body { background: linear-gradient(180deg,var(--bg),#e4e8ee); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  .container { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
   .title { font-size: 24px; font-weight: 700; }
   .sub { color: var(--muted); font-size: 13px; }
-  .card { background: linear-gradient(180deg,var(--panel),var(--panel-2)); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+  .card { background: linear-gradient(180deg,var(--panel),var(--panel-2)); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(15,23,42,.06); }
   label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  input, select, textarea { width: 100%; background: #0b1220; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
-  textarea { min-height: 50px; resize: vertical; }
+  input, select, textarea { width: 100%; background: #ffffff; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
+  textarea { min-height: 60px; resize: vertical; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
   .col { flex: 1; min-width: 140px; }
-  .btn { background: #121a2b; color: var(--text); border: 1px solid var(--border); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; }
-  .btn:hover { filter: brightness(1.15); }
-  .btn.primary { background: var(--accent); color: #06210f; border-color: transparent; }
+  .btn { background: #f3f4f6; color: var(--text); border: 1px solid var(--border); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .btn:hover { filter: brightness(0.97); }
+  .btn.primary { background: var(--accent); color: #ffffff; border-color: transparent; }
   .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
   .btn.ghost { background: transparent; }
   .btn:disabled { opacity: .5; cursor: default; }
+  .btn.small { padding: 5px 10px; font-size: 12px; }
   .tabs { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
-  .tab-btn { background: #121a2b; border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; }
-  .tab-btn.active { background: var(--accent); color: #06210f; border-color: transparent; }
+  .tab-btn { background: #f3f4f6; border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .tab-btn.active { background: var(--accent); color: #ffffff; border-color: transparent; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; overflow: hidden; text-overflow: ellipsis; }
   th { color: var(--muted); font-weight: 600; font-size: 12px; }
-  tr:hover td { background: rgba(255,255,255,.03); }
+  tr:hover td { background: rgba(15,23,42,.03); }
   .hidden { display: none !important; }
   .msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
-  .msg.error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #fecaca; }
-  .msg.ok { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.4); color: #bbf7d0; }
+  .msg.error { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+  .msg.ok { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
+  .msg.warn { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .veh-select-wrap { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-  .icon-btn { background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 13px; }
+  .icon-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; font-size: 13px; padding: 5px 10px; }
+  .icon-btn:hover { background: #f3f4f6; }
   .small { font-size: 12px; color: var(--muted); }
   .center-screen { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
   .login-card { width: 100%; max-width: 360px; }
-  a { color: #60a5fa; }
+  a { color: #2563eb; }
+  .status { font-weight: 700; }
+  .status.ok { color: var(--ok); }
+  .status.warn { color: var(--warn); }
+  .status.danger { color: var(--danger); }
+  .row-ok td { background: rgba(34,197,94,.08); }
+  .row-warn td { background: rgba(234,179,8,.10); }
+  .row-danger td { background: rgba(239,68,68,.12); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: #f3f4f6; border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; margin: 3px 4px 3px 0; }
+  .chip button { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; padding: 0; }
+  .compare-card { min-width: 300px; flex: 1; }
+  .kpi { display: inline-block; background: #f3f4f6; border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; margin-right: 8px; font-size: 13px; }
+  .nowrap { white-space: nowrap; }
+  .danger-zone { border: 1px dashed var(--danger); border-radius: 12px; padding: 14px; margin-top: 22px; }
+  .danger-zone .title2 { color: var(--danger); font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+  .veh-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .veh-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: contain; background: #fff; border: 1px solid var(--border); }
+  .veh-logo-placeholder { width: 64px; height: 64px; border-radius: 12px; background: #eef1f5; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 40px 16px; overflow-y: auto; }
+  .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; width: 100%; max-width: 560px; box-shadow: 0 20px 50px rgba(15,23,42,.25); }
+  .modal-title { font-weight: 700; font-size: 16px; margin-bottom: 14px; }
+  @media print {
+    body { background: #fff; color: #000; }
+    header, .tabs, .no-print, #vehicle-card, .modal-overlay { display: none !important; }
+    .card { border: none; box-shadow: none; padding: 0; background: none; }
+    table { font-size: 11px; }
+    th, td { border-bottom: 1px solid #ccc !important; }
+  }
 </style>
 </head>
 <body>
@@ -78,25 +108,105 @@
   </header>
 
   <div id="global-msg"></div>
+  <div id="backup-reminder" class="hidden"></div>
 
-  <div class="card">
+  <div class="card" id="vehicle-card">
     <div class="veh-select-wrap">
       <div class="col" style="max-width:320px;">
         <label for="vehicle-select">Fahrzeug</label>
         <select id="vehicle-select"></select>
       </div>
       <button id="btn-new-vehicle" class="btn">+ Neues Fahrzeug</button>
-      <button id="btn-delete-vehicle" class="btn danger">Fahrzeug löschen</button>
     </div>
   </div>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="stammdaten">Fahrzeugdaten</button>
+    <button class="tab-btn active" data-tab="uebersicht">Übersicht</button>
     <button class="tab-btn" data-tab="eintraege">Einträge</button>
+    <button class="tab-btn" data-tab="fahrzeugdaten">Fahrzeugdaten</button>
+    <button class="tab-btn" data-tab="stammdaten">Stammdaten</button>
+    <button class="tab-btn" data-tab="report">Report</button>
+    <button class="tab-btn" data-tab="vergleich">Vergleich</button>
   </div>
 
-  <!-- Fahrzeugdaten -->
-  <div id="tab-stammdaten" class="tab-panel active card">
+  <!-- ÜBERSICHT -->
+  <div id="tab-uebersicht" class="tab-panel active card">
+    <div class="veh-header">
+      <img id="ov-logo-img" class="veh-logo hidden" alt="Logo" />
+      <div id="ov-logo-placeholder" class="veh-logo-placeholder">🚗</div>
+      <div>
+        <div id="uebersicht-title" style="font-weight:700; font-size:18px;"></div>
+        <div id="uebersicht-meta" class="small"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col"><label>Aktueller km-Stand</label><input id="ov-odo" type="number" /></div>
+      <div class="col"><label>Stichtag (Datum)</label><input id="ov-date" type="date" /></div>
+      <div class="col">
+        <label>Filter</label>
+        <select id="ov-filter">
+          <option value="all">Alle</option>
+          <option value="due">Nur "Fällig"</option>
+          <option value="dueSoon">"Fällig" + "Bald fällig"</option>
+        </select>
+      </div>
+      <button id="btn-refresh-overview" class="btn primary">Aktualisieren</button>
+    </div>
+    <table style="margin-top:16px;">
+      <colgroup>
+        <col style="width:16%"><col style="width:9%"><col style="width:9%">
+        <col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%">
+        <col style="width:8%"><col style="width:8%"><col style="width:10%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Service-Art</th><th>Intervall (km)</th><th>Intervall (Mte)</th>
+          <th>Letzter km</th><th>Letzter Datum</th>
+          <th>Nächster km</th><th>Nächster Datum</th>
+          <th>Rest-km</th><th>Rest-Tage</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="overview-tbody"></tbody>
+    </table>
+    <div id="overview-empty" class="small hidden" style="margin-top:10px;">Keine Service-Arten definiert - im Tab "Stammdaten" anlegen.</div>
+  </div>
+
+  <!-- EINTRÄGE -->
+  <div id="tab-eintraege" class="tab-panel card">
+    <div class="veh-header">
+      <img id="ent-logo-img" class="veh-logo hidden" alt="Logo" />
+      <div id="ent-logo-placeholder" class="veh-logo-placeholder">🚗</div>
+      <div id="ent-title" style="font-weight:700; font-size:16px;"></div>
+    </div>
+    <div class="row" style="margin-bottom:14px;">
+      <button id="btn-open-add-entry" class="btn primary">+ Eintrag hinzufügen</button>
+    </div>
+    <table>
+      <colgroup>
+        <col style="width:12%"><col style="width:9%"><col style="width:16%">
+        <col style="width:20%"><col style="width:12%"><col style="width:21%"><col style="width:10%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Datum</th><th>km</th><th>Service</th><th>Teile</th><th>Marke</th><th>Notizen</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="entries-tbody"></tbody>
+    </table>
+    <div id="entries-empty" class="small hidden" style="margin-top:10px;">Noch keine Einträge für dieses Fahrzeug.</div>
+  </div>
+
+  <!-- FAHRZEUGDATEN -->
+  <div id="tab-fahrzeugdaten" class="tab-panel card">
+    <div class="row" style="margin-bottom:16px; align-items:center;">
+      <img id="v-logo-preview" class="veh-logo hidden" alt="Logo" />
+      <div id="v-logo-placeholder" class="veh-logo-placeholder">🚗</div>
+      <div class="col">
+        <label>Fahrzeug-Logo/Bild</label>
+        <input id="v-logo-input" type="file" accept="image/*" />
+        <button id="btn-remove-logo" class="btn small ghost" style="margin-top:6px;">Logo entfernen</button>
+      </div>
+    </div>
     <div class="row">
       <div class="col"><label>Name (Anzeige)</label><input id="v-name" /></div>
       <div class="col"><label>Marke</label><input id="v-make" /></div>
@@ -119,45 +229,138 @@
       <button id="btn-save-vehicle" class="btn primary">Speichern</button>
       <span id="save-vehicle-msg" class="small"></span>
     </div>
+
+    <div class="danger-zone">
+      <div class="title2">⚠ Gefahrenzone</div>
+      <div class="small" style="margin-bottom:10px;">Löscht dieses Fahrzeug inkl. aller Einträge, Service-Arten und Marken unwiderruflich.</div>
+      <button id="btn-delete-vehicle" class="btn danger">Dieses Fahrzeug löschen</button>
+    </div>
   </div>
 
-  <!-- Einträge -->
-  <div id="tab-eintraege" class="tab-panel card">
-    <div class="row" style="align-items:flex-end;">
-      <div class="col"><label>Datum</label><input id="e-date" type="date" /></div>
-      <div class="col"><label>km-Stand</label><input id="e-odo" type="number" /></div>
-      <div class="col"><label>Service-Art</label>
-        <input id="e-service" list="service-list" placeholder="z.B. Ölwechsel" />
-        <datalist id="service-list">
-          <option value="Ölwechsel"></option>
-          <option value="Luftfilter"></option>
-          <option value="Innenraumfilter"></option>
-          <option value="Bremsflüssigkeit"></option>
-          <option value="Kraftstofffilter"></option>
-          <option value="Bremsen vorne"></option>
-          <option value="Bremsen hinten"></option>
-          <option value="Motor"></option>
-          <option value="Getriebe"></option>
-          <option value="Elektrik"></option>
-          <option value="Karosserie"></option>
-          <option value="Sonstiges"></option>
-        </datalist>
+  <!-- STAMMDATEN: Service-Intervalle + Marken -->
+  <div id="tab-stammdaten" class="tab-panel card">
+    <div class="veh-header">
+      <img id="sd-logo-img" class="veh-logo hidden" alt="Logo" />
+      <div id="sd-logo-placeholder" class="veh-logo-placeholder">🚗</div>
+      <div id="sd-title" style="font-weight:700; font-size:16px;"></div>
+    </div>
+    <div class="row" style="margin-bottom:12px;">
+      <div style="font-weight:700; font-size:15px;">Service-Arten &amp; Intervalle</div>
+      <button id="btn-open-add-service" class="btn primary" style="margin-left:auto;">+ Service-Art hinzufügen</button>
+    </div>
+    <table>
+      <colgroup><col style="width:45%"><col style="width:20%"><col style="width:20%"><col style="width:15%"></colgroup>
+      <thead>
+        <tr><th>Service-Art</th><th>Intervall (km)</th><th>Intervall (Monate)</th><th></th></tr>
+      </thead>
+      <tbody id="services-tbody"></tbody>
+    </table>
+
+    <div style="font-weight:700; font-size:15px; margin: 24px 0 10px;">Marken (Vorschläge für Einträge)</div>
+    <div id="brands-list"></div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Neue Marke</label><input id="brand-name" placeholder="z.B. Bosch" /></div>
+      <button id="btn-add-brand" class="btn primary">Hinzufügen</button>
+    </div>
+  </div>
+
+  <!-- REPORT -->
+  <div id="tab-report" class="tab-panel card">
+    <div class="row">
+      <div class="col"><label>Von</label><input id="rpt-from" type="date" /></div>
+      <div class="col"><label>Bis</label><input id="rpt-to" type="date" /></div>
+      <div class="col">
+        <label>Service-Art</label>
+        <select id="rpt-service"><option value="">(alle)</option></select>
       </div>
-      <div class="col"><label>Teile</label><input id="e-parts" /></div>
-      <div class="col"><label>Marke</label><input id="e-brand" /></div>
-      <div class="col" style="flex:2;"><label>Notizen</label><input id="e-notes" /></div>
-      <button id="btn-add-entry" class="btn primary">Hinzufügen</button>
+      <button id="btn-build-report" class="btn primary">Report erstellen</button>
+      <button id="btn-print-report" class="btn">Drucken / PDF</button>
     </div>
 
-    <table style="margin-top:16px;">
-      <thead>
-        <tr>
-          <th>Datum</th><th>km</th><th>Service</th><th>Teile</th><th>Marke</th><th>Notizen</th><th></th>
-        </tr>
-      </thead>
-      <tbody id="entries-tbody"></tbody>
+    <div class="veh-header" style="margin-top:20px;">
+      <img id="rpt-logo-img" class="veh-logo hidden" alt="Logo" />
+      <div id="rpt-logo-placeholder" class="veh-logo-placeholder">🚗</div>
+      <div>
+        <div id="rpt-title" style="font-weight:700; font-size:20px;">Service-Report</div>
+        <div id="rpt-meta" class="small"></div>
+        <div id="rpt-meta2" class="small"></div>
+      </div>
+    </div>
+
+    <div style="font-weight:700; font-size:16px; margin:18px 0 8px;">Zusammenfassung</div>
+    <table>
+      <colgroup><col style="width:70%"><col style="width:30%"></colgroup>
+      <thead><tr><th>Service-Art</th><th>Anzahl</th></tr></thead>
+      <tbody id="rpt-summary-tbody"></tbody>
     </table>
-    <div id="entries-empty" class="small hidden" style="margin-top:10px;">Noch keine Einträge für dieses Fahrzeug.</div>
+
+    <div style="font-weight:700; font-size:16px; margin:22px 0 8px;">Einträge im Zeitraum</div>
+    <table>
+      <colgroup>
+        <col style="width:12%"><col style="width:9%"><col style="width:16%">
+        <col style="width:23%"><col style="width:12%"><col style="width:28%">
+      </colgroup>
+      <thead><tr><th>Datum</th><th>km</th><th>Service</th><th>Teile</th><th>Marke</th><th>Notizen</th></tr></thead>
+      <tbody id="rpt-detail-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- VERGLEICH -->
+  <div id="tab-vergleich" class="tab-panel card">
+    <div class="row" style="margin-bottom:12px;">
+      <button id="btn-build-compare" class="btn primary">Vergleich aktualisieren</button>
+      <span class="small">Zeigt alle deine Fahrzeuge basierend auf ihrem jeweils gespeicherten km-Stand/Stichtag.</span>
+    </div>
+    <div id="compare-wrap" class="row" style="align-items:stretch;"></div>
+  </div>
+</div>
+
+<!-- MODAL: Eintrag hinzufügen/bearbeiten -->
+<div id="entry-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title" id="entry-modal-title">Eintrag hinzufügen</div>
+    <div class="row">
+      <div class="col"><label>Datum</label><input id="em-date" type="date" /></div>
+      <div class="col"><label>km-Stand</label><input id="em-odo" type="number" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Service-Art</label><input id="em-service" list="service-list" placeholder="z.B. Ölwechsel" /></div>
+      <div class="col"><label>Marke</label><input id="em-brand" list="brand-list" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Teile</label><textarea id="em-parts"></textarea></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Notizen</label><textarea id="em-notes"></textarea></div>
+    </div>
+    <datalist id="service-list"></datalist>
+    <datalist id="brand-list"></datalist>
+    <div class="row" style="margin-top:18px;">
+      <button id="modal-delete-entry" class="btn danger hidden">Eintrag löschen</button>
+      <span style="flex:1;"></span>
+      <button id="modal-cancel-entry" class="btn ghost">Abbrechen</button>
+      <button id="modal-save-entry" class="btn primary">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Service-Art hinzufügen/bearbeiten -->
+<div id="service-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title" id="service-modal-title">Service-Art hinzufügen</div>
+    <div class="row">
+      <div class="col" style="flex:2;"><label>Service-Art</label><input id="sm-name" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Intervall (km, 0 = nur zeitbasiert)</label><input id="sm-km" type="number" value="0" /></div>
+      <div class="col"><label>Intervall (Monate, 0 = nur km-basiert)</label><input id="sm-months" type="number" value="0" /></div>
+    </div>
+    <div class="row" style="margin-top:18px;">
+      <button id="modal-delete-service" class="btn danger hidden">Löschen</button>
+      <span style="flex:1;"></span>
+      <button id="modal-cancel-service" class="btn ghost">Abbrechen</button>
+      <button id="modal-save-service" class="btn primary">Speichern</button>
+    </div>
   </div>
 </div>
 
@@ -170,10 +373,10 @@ import {
   createUserWithEmailAndPassword, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getDatabase, ref, onValue, set, push, remove, update, get, child
+  getDatabase, ref, onValue, set, push, remove, update, get
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-// ---- Firebase-Konfiguration (aus der Firebase-Konsole) ----
+// ---- Firebase-Konfiguration ----
 const firebaseConfig = {
   apiKey: "AIzaSyA3ipj2Ey9abyKkDMECm4CAr8UIEpRUXEw",
   authDomain: "fahrzeug-service-tracker.firebaseapp.com",
@@ -189,22 +392,36 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+const DEFAULT_SERVICES = [
+  { name: "Ölwechsel", intervalKm: 12000, intervalMonths: 12 },
+  { name: "Luftfilter", intervalKm: 20000, intervalMonths: 24 },
+  { name: "Innenraumfilter", intervalKm: 20000, intervalMonths: 24 },
+  { name: "Bremsflüssigkeit", intervalKm: 0, intervalMonths: 24 },
+  { name: "Kraftstofffilter", intervalKm: 40000, intervalMonths: 36 },
+  { name: "Getriebeölspülung", intervalKm: 80000, intervalMonths: 72 },
+  { name: "Bremsen vorne", intervalKm: 80000, intervalMonths: 0 },
+  { name: "Bremsen hinten", intervalKm: 80000, intervalMonths: 0 },
+];
+
 // ---- State ----
 let currentUser = null;
-let vehicles = {};          // { vehicleId: {..fields..} }
+let vehicles = {};
 let activeVehicleId = null;
-let entries = {};           // { entryId: {..fields..} } for active vehicle
-let vehiclesRefUnsub = null;
-let entriesRefUnsub = null;
+let entries = {};
+let services = {};
+let brands = {};
+let vehiclesRefUnsub = null, entriesRefUnsub = null, servicesRefUnsub = null, brandsRefUnsub = null;
+let logoState = { changed: false, value: "" };
+let editingEntryId = null;
+let editingServiceId = null;
 
-// ---- DOM refs ----
 const $ = (id) => document.getElementById(id);
 const loginScreen = $("login-screen");
 const appScreen = $("app-screen");
 
-function showMsg(el, text, type) {
-  el.innerHTML = text ? `<div class="msg ${type}">${text}</div>` : "";
-}
+function showMsg(el, text, type) { el.innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ""; }
+function escapeHtml(str) { return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+function userPath(...segments) { return ["users", currentUser.uid, ...segments].join("/"); }
 
 // ---------- AUTH ----------
 onAuthStateChanged(auth, (user) => {
@@ -214,12 +431,13 @@ onAuthStateChanged(auth, (user) => {
     appScreen.classList.remove("hidden");
     $("user-email-label").textContent = user.email;
     subscribeVehicles();
+    checkBackupReminder();
   } else {
     appScreen.classList.add("hidden");
     loginScreen.classList.remove("hidden");
-    if (vehiclesRefUnsub) { vehiclesRefUnsub(); vehiclesRefUnsub = null; }
-    if (entriesRefUnsub) { entriesRefUnsub(); entriesRefUnsub = null; }
-    vehicles = {}; entries = {}; activeVehicleId = null;
+    [vehiclesRefUnsub, entriesRefUnsub, servicesRefUnsub, brandsRefUnsub].forEach(u => u && u());
+    vehiclesRefUnsub = entriesRefUnsub = servicesRefUnsub = brandsRefUnsub = null;
+    vehicles = {}; entries = {}; services = {}; brands = {}; activeVehicleId = null;
   }
 });
 
@@ -227,11 +445,8 @@ $("btn-login").addEventListener("click", async () => {
   const email = $("login-email").value.trim();
   const pass = $("login-pass").value;
   showMsg($("login-msg"), "", "");
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-  } catch (e) {
-    showMsg($("login-msg"), "Anmeldung fehlgeschlagen: " + friendlyAuthError(e), "error");
-  }
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch (e) { showMsg($("login-msg"), "Anmeldung fehlgeschlagen: " + friendlyAuthError(e), "error"); }
 });
 
 $("btn-register").addEventListener("click", async () => {
@@ -242,11 +457,8 @@ $("btn-register").addEventListener("click", async () => {
     showMsg($("login-msg"), "Bitte E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.", "error");
     return;
   }
-  try {
-    await createUserWithEmailAndPassword(auth, email, pass);
-  } catch (e) {
-    showMsg($("login-msg"), "Registrierung fehlgeschlagen: " + friendlyAuthError(e), "error");
-  }
+  try { await createUserWithEmailAndPassword(auth, email, pass); }
+  catch (e) { showMsg($("login-msg"), "Registrierung fehlgeschlagen: " + friendlyAuthError(e), "error"); }
 });
 
 $("btn-logout").addEventListener("click", () => signOut(auth));
@@ -261,11 +473,33 @@ function friendlyAuthError(e) {
   return e.message || "Unbekannter Fehler.";
 }
 
-// ---------- VEHICLES ----------
-function userPath(...segments) {
-  return ["users", currentUser.uid, ...segments].join("/");
+// ---------- BACKUP-ERINNERUNG ----------
+const BACKUP_REMINDER_DAYS = 14;
+
+async function checkBackupReminder() {
+  const snap = await get(ref(db, userPath("meta", "lastExportTs")));
+  const last = snap.val();
+  const banner = $("backup-reminder");
+  const days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+  if (last === null || days >= BACKUP_REMINDER_DAYS) {
+    const text = last === null
+      ? "Du hast noch kein Backup exportiert."
+      : `Letztes Backup ist ${days} Tage her.`;
+    banner.innerHTML = `
+      <div class="msg warn">
+        <span>⚠ ${text}</span>
+        <button id="btn-export-from-banner" class="btn small primary">Jetzt JSON exportieren</button>
+        <button id="btn-dismiss-banner" class="btn small ghost">Später erinnern</button>
+      </div>`;
+    banner.classList.remove("hidden");
+    $("btn-export-from-banner").addEventListener("click", () => $("btn-export").click());
+    $("btn-dismiss-banner").addEventListener("click", () => banner.classList.add("hidden"));
+  } else {
+    banner.classList.add("hidden");
+  }
 }
 
+// ---------- VEHICLES ----------
 function subscribeVehicles() {
   const vRef = ref(db, userPath("vehicles"));
   vehiclesRefUnsub = onValue(vRef, (snap) => {
@@ -282,7 +516,7 @@ function renderVehicleSelect() {
     sel.innerHTML = `<option value="">— Kein Fahrzeug —</option>`;
     activeVehicleId = null;
     clearVehicleForm();
-    renderEntries();
+    subscribeEntries(null); subscribeServices(null); subscribeBrands(null);
     return;
   }
   ids.forEach((id) => {
@@ -291,19 +525,33 @@ function renderVehicleSelect() {
     opt.textContent = vehicles[id].name || vehicles[id].make || "Fahrzeug";
     sel.appendChild(opt);
   });
-  if (!activeVehicleId || !vehicles[activeVehicleId]) {
-    activeVehicleId = ids[0];
-  }
+  if (!activeVehicleId || !vehicles[activeVehicleId]) activeVehicleId = ids[0];
   sel.value = activeVehicleId;
-  loadVehicleIntoForm(activeVehicleId);
-  subscribeEntries(activeVehicleId);
+  onActiveVehicleChanged();
 }
 
 $("vehicle-select").addEventListener("change", (e) => {
   activeVehicleId = e.target.value;
+  onActiveVehicleChanged();
+});
+
+function onActiveVehicleChanged() {
   loadVehicleIntoForm(activeVehicleId);
   subscribeEntries(activeVehicleId);
-});
+  subscribeServices(activeVehicleId);
+  subscribeBrands(activeVehicleId);
+}
+
+function setLogoDisplay(imgEl, placeholderEl, dataUrl) {
+  if (dataUrl) {
+    imgEl.src = dataUrl;
+    imgEl.classList.remove("hidden");
+    placeholderEl.classList.add("hidden");
+  } else {
+    imgEl.classList.add("hidden");
+    placeholderEl.classList.remove("hidden");
+  }
+}
 
 function loadVehicleIntoForm(id) {
   const v = vehicles[id] || {};
@@ -317,47 +565,108 @@ function loadVehicleIntoForm(id) {
   $("v-oil").value = v.oil || "";
   $("v-odo").value = v.currentOdo || "";
   $("v-notes").value = v.notes || "";
+  $("ov-odo").value = v.currentOdo || "";
+  $("ov-date").value = v.asOfDate || new Date().toISOString().slice(0, 10);
+  $("uebersicht-title").textContent = v.name || v.make || "Fahrzeug";
+  $("uebersicht-meta").textContent = [v.make, v.model, v.year, v.plate].filter(Boolean).join(" · ");
+
+  logoState = { changed: false, value: "" };
+  setLogoDisplay($("v-logo-preview"), $("v-logo-placeholder"), v.logo || "");
+  setLogoDisplay($("ov-logo-img"), $("ov-logo-placeholder"), v.logo || "");
+  setLogoDisplay($("ent-logo-img"), $("ent-logo-placeholder"), v.logo || "");
+  setLogoDisplay($("sd-logo-img"), $("sd-logo-placeholder"), v.logo || "");
+  $("ent-title").textContent = v.name || v.make || "Fahrzeug";
+  $("sd-title").textContent = v.name || v.make || "Fahrzeug";
+  $("v-logo-input").value = "";
 }
 
 function clearVehicleForm() {
   ["v-name","v-make","v-model","v-year","v-plate","v-vin","v-engine","v-oil","v-odo","v-notes"].forEach(id => $(id).value = "");
+  $("uebersicht-title").textContent = ""; $("uebersicht-meta").textContent = "";
+  $("ent-title").textContent = ""; $("sd-title").textContent = "";
+  setLogoDisplay($("v-logo-preview"), $("v-logo-placeholder"), "");
+  setLogoDisplay($("ov-logo-img"), $("ov-logo-placeholder"), "");
+  setLogoDisplay($("ent-logo-img"), $("ent-logo-placeholder"), "");
+  setLogoDisplay($("sd-logo-img"), $("sd-logo-placeholder"), "");
 }
 
 $("btn-new-vehicle").addEventListener("click", async () => {
   const name = prompt("Name des neuen Fahrzeugs (z.B. Mercedes S211):");
   if (!name) return;
   const vRef = push(ref(db, userPath("vehicles")));
-  await set(vRef, { name, make: "", model: "", year: "", plate: "", vin: "", engine: "", oil: "", currentOdo: "", notes: "" });
+  await set(vRef, { name, make: "", model: "", year: "", plate: "", vin: "", engine: "", oil: "", currentOdo: "", asOfDate: new Date().toISOString().slice(0,10), notes: "" });
+  for (const s of DEFAULT_SERVICES) {
+    const sRef = push(ref(db, userPath("services", vRef.key)));
+    await set(sRef, s);
+  }
   activeVehicleId = vRef.key;
 });
 
 $("btn-delete-vehicle").addEventListener("click", async () => {
   if (!activeVehicleId) return;
   const v = vehicles[activeVehicleId];
-  if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge wirklich löschen?`)) return;
+  if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge, Service-Arten und Marken WIRKLICH unwiderruflich löschen?`)) return;
   await remove(ref(db, userPath("vehicles", activeVehicleId)));
   await remove(ref(db, userPath("entries", activeVehicleId)));
+  await remove(ref(db, userPath("services", activeVehicleId)));
+  await remove(ref(db, userPath("brands", activeVehicleId)));
   activeVehicleId = null;
 });
 
-$("btn-save-vehicle").addEventListener("click", async () => {
-  if (!activeVehicleId) {
-    showMsg2($("save-vehicle-msg"), "Bitte zuerst ein Fahrzeug anlegen.");
-    return;
+// ---- Logo Upload ----
+function resizeImageToDataURL(file, maxDim = 320, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; } }
+        else { if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; } }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+$("v-logo-input").addEventListener("change", async (ev) => {
+  const f = ev.target.files?.[0];
+  if (!f) return;
+  try {
+    const dataUrl = await resizeImageToDataURL(f);
+    logoState = { changed: true, value: dataUrl };
+    setLogoDisplay($("v-logo-preview"), $("v-logo-placeholder"), dataUrl);
+  } catch {
+    alert("Bild konnte nicht verarbeitet werden.");
   }
+});
+
+$("btn-remove-logo").addEventListener("click", () => {
+  logoState = { changed: true, value: "" };
+  setLogoDisplay($("v-logo-preview"), $("v-logo-placeholder"), "");
+  $("v-logo-input").value = "";
+});
+
+$("btn-save-vehicle").addEventListener("click", async () => {
+  if (!activeVehicleId) { showMsg2($("save-vehicle-msg"), "Bitte zuerst ein Fahrzeug anlegen."); return; }
   const data = {
-    name: $("v-name").value.trim(),
-    make: $("v-make").value.trim(),
-    model: $("v-model").value.trim(),
-    year: $("v-year").value.trim(),
-    plate: $("v-plate").value.trim(),
-    vin: $("v-vin").value.trim(),
-    engine: $("v-engine").value.trim(),
-    oil: $("v-oil").value.trim(),
-    currentOdo: $("v-odo").value.trim(),
-    notes: $("v-notes").value.trim(),
+    name: $("v-name").value.trim(), make: $("v-make").value.trim(), model: $("v-model").value.trim(),
+    year: $("v-year").value.trim(), plate: $("v-plate").value.trim(), vin: $("v-vin").value.trim(),
+    engine: $("v-engine").value.trim(), oil: $("v-oil").value.trim(),
+    currentOdo: $("v-odo").value.trim(), notes: $("v-notes").value.trim(),
   };
+  if (logoState.changed) data.logo = logoState.value;
   await update(ref(db, userPath("vehicles", activeVehicleId)), data);
+  logoState = { changed: false, value: "" };
   showMsg2($("save-vehicle-msg"), "Gespeichert ✓");
   setTimeout(() => showMsg2($("save-vehicle-msg"), ""), 2000);
 });
@@ -367,11 +676,12 @@ function showMsg2(el, text) { el.textContent = text || ""; }
 // ---------- ENTRIES ----------
 function subscribeEntries(vehicleId) {
   if (entriesRefUnsub) { entriesRefUnsub(); entriesRefUnsub = null; }
-  if (!vehicleId) { entries = {}; renderEntries(); return; }
+  if (!vehicleId) { entries = {}; renderEntries(); renderOverview(); return; }
   const eRef = ref(db, userPath("entries", vehicleId));
   entriesRefUnsub = onValue(eRef, (snap) => {
     entries = snap.val() || {};
     renderEntries();
+    renderOverview();
   });
 }
 
@@ -380,59 +690,273 @@ function renderEntries() {
   tbody.innerHTML = "";
   const ids = Object.keys(entries);
   $("entries-empty").classList.toggle("hidden", ids.length !== 0);
-  const sorted = ids.map(id => ({ id, ...entries[id] }))
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const sorted = ids.map(id => ({ id, ...entries[id] })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   sorted.forEach((entry) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHtml(entry.date || "")}</td>
-      <td>${entry.odo != null ? Number(entry.odo).toLocaleString("de-CH") : ""}</td>
+      <td class="nowrap">${escapeHtml(entry.date || "")}</td>
+      <td class="nowrap">${entry.odo != null ? Number(entry.odo).toLocaleString("de-CH") : ""}</td>
       <td>${escapeHtml(entry.service || "")}</td>
       <td>${escapeHtml(entry.parts || "")}</td>
       <td>${escapeHtml(entry.brand || "")}</td>
       <td>${escapeHtml(entry.notes || "")}</td>
-      <td><button class="icon-btn" data-id="${entry.id}">✕ Löschen</button></td>
+      <td><button class="icon-btn" data-id="${entry.id}">✎ Bearbeiten</button></td>
     `;
     tbody.appendChild(tr);
   });
   tbody.querySelectorAll(".icon-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openEntryModal(btn.dataset.id));
+  });
+}
+
+$("btn-open-add-entry").addEventListener("click", () => openEntryModal(null));
+
+function openEntryModal(id) {
+  editingEntryId = id || null;
+  const e = id ? (entries[id] || {}) : {};
+  $("entry-modal-title").textContent = id ? "Eintrag bearbeiten" : "Eintrag hinzufügen";
+  $("em-date").value = e.date || "";
+  $("em-odo").value = e.odo ?? "";
+  $("em-service").value = e.service || "";
+  $("em-brand").value = e.brand || "";
+  $("em-parts").value = e.parts || "";
+  $("em-notes").value = e.notes || "";
+  $("modal-delete-entry").classList.toggle("hidden", !id);
+  $("entry-modal").classList.remove("hidden");
+}
+function closeEntryModal() { $("entry-modal").classList.add("hidden"); editingEntryId = null; }
+
+$("modal-cancel-entry").addEventListener("click", closeEntryModal);
+
+$("modal-save-entry").addEventListener("click", async () => {
+  if (!activeVehicleId) { alert("Bitte zuerst ein Fahrzeug anlegen oder auswählen."); return; }
+  const date = $("em-date").value;
+  const service = $("em-service").value.trim();
+  if (!date || !service) { alert("Bitte mindestens Datum und Service-Art angeben."); return; }
+  const data = {
+    date, odo: $("em-odo").value ? Number($("em-odo").value) : null,
+    service, brand: $("em-brand").value.trim(),
+    parts: $("em-parts").value.trim(), notes: $("em-notes").value.trim(),
+  };
+  if (editingEntryId) {
+    await update(ref(db, userPath("entries", activeVehicleId, editingEntryId)), data);
+  } else {
+    data.ts = Date.now();
+    await set(push(ref(db, userPath("entries", activeVehicleId))), data);
+  }
+  closeEntryModal();
+});
+
+$("modal-delete-entry").addEventListener("click", async () => {
+  if (!editingEntryId) return;
+  if (!confirm("Diesen Eintrag wirklich löschen?")) return;
+  await remove(ref(db, userPath("entries", activeVehicleId, editingEntryId)));
+  closeEntryModal();
+});
+
+// ---------- SERVICES (Stammdaten: Intervalle) ----------
+function subscribeServices(vehicleId) {
+  if (servicesRefUnsub) { servicesRefUnsub(); servicesRefUnsub = null; }
+  if (!vehicleId) { services = {}; renderServices(); renderOverview(); renderServiceDatalist(); populateReportServiceSelect(); return; }
+  const sRef = ref(db, userPath("services", vehicleId));
+  servicesRefUnsub = onValue(sRef, (snap) => {
+    services = snap.val() || {};
+    renderServices();
+    renderOverview();
+    renderServiceDatalist();
+    populateReportServiceSelect();
+  });
+}
+
+function renderServiceDatalist() {
+  $("service-list").innerHTML = Object.values(services).map(s => `<option value="${escapeHtml(s.name)}"></option>`).join("");
+}
+
+function renderServices() {
+  const tbody = $("services-tbody");
+  tbody.innerHTML = "";
+  Object.entries(services).forEach(([id, s]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(s.name || "")}</td>
+      <td>${s.intervalKm || 0}</td>
+      <td>${s.intervalMonths || 0}</td>
+      <td><button class="icon-btn" data-id="${id}">✎ Bearbeiten</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll(".icon-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openServiceModal(btn.dataset.id));
+  });
+}
+
+$("btn-open-add-service").addEventListener("click", () => openServiceModal(null));
+
+function openServiceModal(id) {
+  editingServiceId = id || null;
+  const s = id ? (services[id] || {}) : {};
+  $("service-modal-title").textContent = id ? "Service-Art bearbeiten" : "Service-Art hinzufügen";
+  $("sm-name").value = s.name || "";
+  $("sm-km").value = s.intervalKm || 0;
+  $("sm-months").value = s.intervalMonths || 0;
+  $("modal-delete-service").classList.toggle("hidden", !id);
+  $("service-modal").classList.remove("hidden");
+}
+function closeServiceModal() { $("service-modal").classList.add("hidden"); editingServiceId = null; }
+
+$("modal-cancel-service").addEventListener("click", closeServiceModal);
+
+$("modal-save-service").addEventListener("click", async () => {
+  if (!activeVehicleId) return;
+  const name = $("sm-name").value.trim();
+  if (!name) { alert("Bitte einen Namen für die Service-Art angeben."); return; }
+  const data = { name, intervalKm: Number($("sm-km").value) || 0, intervalMonths: Number($("sm-months").value) || 0 };
+  if (editingServiceId) {
+    await update(ref(db, userPath("services", activeVehicleId, editingServiceId)), data);
+  } else {
+    await set(push(ref(db, userPath("services", activeVehicleId))), data);
+  }
+  closeServiceModal();
+});
+
+$("modal-delete-service").addEventListener("click", async () => {
+  if (!editingServiceId) return;
+  if (!confirm("Diese Service-Art wirklich löschen?")) return;
+  await remove(ref(db, userPath("services", activeVehicleId, editingServiceId)));
+  closeServiceModal();
+});
+
+// ---------- BRANDS ----------
+function subscribeBrands(vehicleId) {
+  if (brandsRefUnsub) { brandsRefUnsub(); brandsRefUnsub = null; }
+  if (!vehicleId) { brands = {}; renderBrands(); renderBrandDatalist(); return; }
+  const bRef = ref(db, userPath("brands", vehicleId));
+  brandsRefUnsub = onValue(bRef, (snap) => {
+    brands = snap.val() || {};
+    renderBrands();
+    renderBrandDatalist();
+  });
+}
+
+function renderBrandDatalist() {
+  $("brand-list").innerHTML = Object.values(brands).map(b => `<option value="${escapeHtml(b.name || b)}"></option>`).join("");
+}
+
+function renderBrands() {
+  const wrap = $("brands-list");
+  wrap.innerHTML = "";
+  Object.entries(brands).forEach(([id, b]) => {
+    const name = typeof b === "string" ? b : b.name;
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${escapeHtml(name)} <button data-id="${id}">✕</button>`;
+    wrap.appendChild(chip);
+  });
+  wrap.querySelectorAll("button").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (!confirm("Diesen Eintrag löschen?")) return;
-      await remove(ref(db, userPath("entries", activeVehicleId, btn.dataset.id)));
+      await remove(ref(db, userPath("brands", activeVehicleId, btn.dataset.id)));
     });
   });
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+$("btn-add-brand").addEventListener("click", async () => {
+  if (!activeVehicleId) return;
+  const name = $("brand-name").value.trim();
+  if (!name) return;
+  await set(push(ref(db, userPath("brands", activeVehicleId))), { name });
+  $("brand-name").value = "";
+});
+
+// ---------- ÜBERSICHT: Berechnungslogik ----------
+function addMonths(dateStr, months) {
+  if (!dateStr || !months) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  d.setMonth(d.getMonth() + Number(months));
+  return d.toISOString().slice(0, 10);
+}
+function daysBetween(fromStr, toStr) {
+  if (!fromStr || !toStr) return "";
+  const a = new Date(fromStr + "T00:00:00");
+  const b = new Date(toStr + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+function fmtDate(str) {
+  if (!str) return "";
+  const [y,m,d] = str.split("-");
+  return d && m && y ? `${d}.${m}.${y}` : str;
 }
 
-$("btn-add-entry").addEventListener("click", async () => {
-  if (!activeVehicleId) {
-    showMsg($("global-msg"), "Bitte zuerst ein Fahrzeug anlegen oder auswählen.", "error");
-    setTimeout(() => showMsg($("global-msg"), "", ""), 3000);
-    return;
+function statusForService(service, entriesList, currentOdo, stichtag) {
+  const relevant = entriesList.filter(e => (e.service || "") === service.name);
+  relevant.sort((a, b) => (b.date || "").localeCompare(a.date || "") || ((b.odo||0) - (a.odo||0)));
+  const last = relevant[0];
+  const lastKm = last ? last.odo : "";
+  const lastDate = last ? last.date : "";
+
+  let nextKm = "", nextDate = "", restKm = "", restDays = "";
+  if (service.intervalKm && lastKm !== "" && lastKm != null) {
+    nextKm = Number(lastKm) + Number(service.intervalKm);
+    if (currentOdo !== "" && currentOdo != null) restKm = nextKm - Number(currentOdo);
   }
-  const date = $("e-date").value;
-  const odo = $("e-odo").value;
-  const service = $("e-service").value.trim();
-  if (!date || !service) {
-    showMsg($("global-msg"), "Bitte mindestens Datum und Service-Art angeben.", "error");
-    setTimeout(() => showMsg($("global-msg"), "", ""), 3000);
-    return;
+  if (service.intervalMonths && lastDate) {
+    nextDate = addMonths(lastDate, service.intervalMonths);
+    if (stichtag) restDays = daysBetween(stichtag, nextDate);
   }
-  const entry = {
-    date, odo: odo ? Number(odo) : null,
-    service,
-    parts: $("e-parts").value.trim(),
-    brand: $("e-brand").value.trim(),
-    notes: $("e-notes").value.trim(),
-    ts: Date.now(),
-  };
-  const eRef = push(ref(db, userPath("entries", activeVehicleId)));
-  await set(eRef, entry);
-  ["e-date","e-odo","e-service","e-parts","e-brand","e-notes"].forEach(id => $(id).value = "");
+
+  let st = { label: "OK", cls: "ok" };
+  const kmDue = restKm !== "" && restKm <= 0;
+  const daysDue = restDays !== "" && restDays <= 0;
+  const kmSoon = restKm !== "" && service.intervalKm && restKm <= 0.1 * service.intervalKm;
+  const daysSoon = restDays !== "" && restDays <= 30;
+  if (kmDue || daysDue) st = { label: "Fällig", cls: "danger" };
+  else if (kmSoon || daysSoon) st = { label: "Bald fällig", cls: "warn" };
+  else if (restKm === "" && restDays === "") st = { label: "-", cls: "" };
+
+  return { lastKm, lastDate, nextKm, nextDate, restKm, restDays, status: st };
+}
+
+function renderOverview() {
+  const tbody = $("overview-tbody");
+  tbody.innerHTML = "";
+  const svcList = Object.values(services);
+  $("overview-empty").classList.toggle("hidden", svcList.length !== 0);
+  const currentOdo = $("ov-odo").value;
+  const stichtag = $("ov-date").value;
+  const filter = $("ov-filter") ? $("ov-filter").value : "all";
+  const entriesList = Object.values(entries);
+
+  svcList.forEach((s) => {
+    const r = statusForService(s, entriesList, currentOdo, stichtag);
+    if (filter === "due" && r.status.cls !== "danger") return;
+    if (filter === "dueSoon" && !(r.status.cls === "danger" || r.status.cls === "warn")) return;
+    const tr = document.createElement("tr");
+    tr.className = r.status.cls === "danger" ? "row-danger" : r.status.cls === "warn" ? "row-warn" : r.status.cls === "ok" ? "row-ok" : "";
+    tr.innerHTML = `
+      <td>${escapeHtml(s.name)}</td>
+      <td>${s.intervalKm || "-"}</td>
+      <td>${s.intervalMonths || "-"}</td>
+      <td>${r.lastKm !== "" && r.lastKm != null ? Number(r.lastKm).toLocaleString("de-CH") : "-"}</td>
+      <td>${r.lastDate ? fmtDate(r.lastDate) : "-"}</td>
+      <td>${r.nextKm !== "" ? Number(r.nextKm).toLocaleString("de-CH") : "-"}</td>
+      <td>${r.nextDate ? fmtDate(r.nextDate) : "-"}</td>
+      <td>${r.restKm !== "" ? Number(r.restKm).toLocaleString("de-CH") : "-"}</td>
+      <td>${r.restDays !== "" ? r.restDays : "-"}</td>
+      <td class="status ${r.status.cls}">${r.status.label}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+$("btn-refresh-overview").addEventListener("click", async () => {
+  if (activeVehicleId) {
+    await update(ref(db, userPath("vehicles", activeVehicleId)), {
+      currentOdo: $("ov-odo").value.trim(),
+      asOfDate: $("ov-date").value,
+    });
+  }
+  renderOverview();
 });
+$("ov-filter").addEventListener("change", renderOverview);
 
 // ---------- TABS ----------
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -441,23 +965,167 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     $("tab-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "vergleich") buildCompare();
+    if (btn.dataset.tab === "report") buildReport();
   });
 });
 
+// ---------- REPORT ----------
+function populateReportServiceSelect() {
+  const sel = $("rpt-service");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">(alle)</option>` + Object.values(services).map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
+  sel.value = current;
+}
+
+$("btn-build-report").addEventListener("click", buildReport);
+$("btn-print-report").addEventListener("click", () => window.print());
+
+function buildReport() {
+  const v = vehicles[activeVehicleId] || {};
+  setLogoDisplay($("rpt-logo-img"), $("rpt-logo-placeholder"), v.logo || "");
+  $("rpt-title").textContent = "Service-Report – " + (v.name || v.make || "Fahrzeug");
+  $("rpt-meta").textContent = [v.make, v.model, v.year, v.plate, v.vin, v.engine].filter(Boolean).join(" · ");
+
+  const from = $("rpt-from").value;
+  const to = $("rpt-to").value;
+  const svcFilter = $("rpt-service").value;
+
+  let list = Object.values(entries);
+  if (from) list = list.filter(e => (e.date || "") >= from);
+  if (to) list = list.filter(e => (e.date || "") <= to);
+  if (svcFilter) list = list.filter(e => (e.service || "") === svcFilter);
+  list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  $("rpt-meta2").textContent = `Zeitraum: ${from ? fmtDate(from) : "—"} – ${to ? fmtDate(to) : "—"} · Service: ${svcFilter || "alle"} · Einträge: ${list.length}`;
+
+  const counts = new Map();
+  list.forEach(e => counts.set(e.service || "(ohne Angabe)", (counts.get(e.service || "(ohne Angabe)") || 0) + 1));
+  const sumTbody = $("rpt-summary-tbody");
+  sumTbody.innerHTML = [...counts.entries()].sort((a,b) => b[1]-a[1]).map(([name, count]) => `
+    <tr><td>${escapeHtml(name)}</td><td>${count}</td></tr>
+  `).join("") || `<tr><td colspan="2" class="small">Keine Einträge im gewählten Zeitraum.</td></tr>`;
+
+  const detTbody = $("rpt-detail-tbody");
+  detTbody.innerHTML = list.map(e => `
+    <tr>
+      <td class="nowrap">${escapeHtml(e.date || "")}</td>
+      <td class="nowrap">${e.odo != null ? Number(e.odo).toLocaleString("de-CH") : ""}</td>
+      <td>${escapeHtml(e.service || "")}</td>
+      <td>${escapeHtml(e.parts || "")}</td>
+      <td>${escapeHtml(e.brand || "")}</td>
+      <td>${escapeHtml(e.notes || "")}</td>
+    </tr>
+  `).join("");
+}
+
+// ---------- VERGLEICH ----------
+$("btn-build-compare").addEventListener("click", buildCompare);
+
+async function buildCompare() {
+  const wrap = $("compare-wrap");
+  wrap.innerHTML = `<div class="small">Lade...</div>`;
+  const vIds = Object.keys(vehicles);
+  const cards = [];
+  for (const vid of vIds) {
+    const v = vehicles[vid];
+    const [svcSnap, entSnap] = await Promise.all([
+      get(ref(db, userPath("services", vid))),
+      get(ref(db, userPath("entries", vid))),
+    ]);
+    const svcList = Object.values(svcSnap.val() || {});
+    const entList = Object.values(entSnap.val() || {});
+    const currentOdo = v.currentOdo || "";
+    const stichtag = v.asOfDate || new Date().toISOString().slice(0,10);
+    let ok = 0, warn = 0, due = 0;
+    const dueList = [];
+    svcList.forEach((s) => {
+      const r = statusForService(s, entList, currentOdo, stichtag);
+      if (r.status.cls === "danger") { due++; dueList.push({ name: s.name, ...r }); }
+      else if (r.status.cls === "warn") { warn++; }
+      else if (r.status.cls === "ok") { ok++; }
+    });
+    dueList.sort((a, b) => (a.restDays === "" ? 99999 : a.restDays) - (b.restDays === "" ? 99999 : b.restDays));
+    const logoHtml = v.logo ? `<img src="${v.logo}" style="width:40px;height:40px;border-radius:8px;object-fit:contain;border:1px solid var(--border);background:#fff">` : "";
+    cards.push(`
+      <div class="card compare-card">
+        <div class="row" style="align-items:center; gap:10px;">
+          ${logoHtml}
+          <div style="font-weight:700; font-size:16px;">${escapeHtml(v.name || v.make || "Fahrzeug")}</div>
+        </div>
+        <div class="small" style="margin:8px 0 10px;">${[v.make, v.model, v.year, v.plate].filter(Boolean).map(escapeHtml).join(" · ")}${currentOdo ? " · " + Number(currentOdo).toLocaleString("de-CH") + " km" : ""}</div>
+        <div>
+          <span class="kpi">OK: <b>${ok}</b></span>
+          <span class="kpi">Bald fällig: <b>${warn}</b></span>
+          <span class="kpi">Fällig: <b>${due}</b></span>
+        </div>
+        <table style="margin-top:12px;">
+          <thead><tr><th>Service</th><th>Termin</th><th>Rest-Tage</th><th>Rest-km</th></tr></thead>
+          <tbody>
+            ${dueList.slice(0, 10).map(x => `<tr>
+              <td>${escapeHtml(x.name)}</td>
+              <td>${x.nextDate ? fmtDate(x.nextDate) : "-"}</td>
+              <td>${x.restDays !== "" ? x.restDays : "-"}</td>
+              <td>${x.restKm !== "" ? Number(x.restKm).toLocaleString("de-CH") : "-"}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    `);
+  }
+  wrap.innerHTML = cards.join("") || `<div class="small">Keine Fahrzeuge vorhanden.</div>`;
+}
+
 // ---------- IMPORT / EXPORT ----------
 $("btn-export").addEventListener("click", async () => {
-  const vSnap = await get(ref(db, userPath("vehicles")));
-  const eSnap = await get(ref(db, userPath("entries")));
-  const payload = { vehicles: vSnap.val() || {}, entries: eSnap.val() || {} };
+  const [vSnap, eSnap, sSnap, bSnap] = await Promise.all([
+    get(ref(db, userPath("vehicles"))),
+    get(ref(db, userPath("entries"))),
+    get(ref(db, userPath("services"))),
+    get(ref(db, userPath("brands"))),
+  ]);
+  const payload = { vehicles: vSnap.val() || {}, entries: eSnap.val() || {}, services: sSnap.val() || {}, brands: bSnap.val() || {} };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const today = new Date().toISOString().slice(0, 10); // JJJJ-MM-TT
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "fahrzeug-tracker-export.json";
+  a.download = `${today}_fahrzeug-tracker-export.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+  await set(ref(db, userPath("meta", "lastExportTs")), Date.now());
+  $("backup-reminder").classList.add("hidden");
 });
 
 $("btn-import").addEventListener("click", () => $("import-file-input").click());
+
+function normalizeImportData(data) {
+  const list = [];
+  if (Array.isArray(data.vehicles)) {
+    // Format des ursprünglichen HTML/JSON-Tools
+    for (const v of data.vehicles) {
+      const info = v.vehicle || {};
+      list.push({
+        name: v.name || info.make || "Fahrzeug",
+        info,
+        entries: v.entries || [],
+        services: v.services || [],
+        brands: (v.brands || []).map(b => (typeof b === "string" ? b : b.name)),
+      });
+    }
+  } else if (data.vehicles && typeof data.vehicles === "object") {
+    // Format des eigenen "JSON exportieren"-Backups dieser App
+    for (const [vid, info] of Object.entries(data.vehicles)) {
+      list.push({
+        name: info.name || info.make || "Fahrzeug",
+        info,
+        entries: Object.values((data.entries && data.entries[vid]) || {}),
+        services: Object.values((data.services && data.services[vid]) || {}),
+        brands: Object.values((data.brands && data.brands[vid]) || {}).map(b => (typeof b === "string" ? b : b.name)),
+      });
+    }
+  }
+  return list;
+}
 
 $("import-file-input").addEventListener("change", async (ev) => {
   const file = ev.target.files?.[0];
@@ -466,34 +1134,58 @@ $("import-file-input").addEventListener("change", async (ev) => {
   let data;
   try { data = JSON.parse(text); } catch { alert("Ungültige JSON-Datei."); return; }
 
-  // Erwartet entweder das alte Multi-Fahrzeug-Format { vehicles: [ {name, vehicle:{...}, entries:[...]} ] }
-  // oder bereits das neue Format { vehicles: {...}, entries: {...} }
   try {
-    if (Array.isArray(data.vehicles)) {
-      // Altes Format vom HTML/JSON-Tracker
-      for (const v of data.vehicles) {
+    const vehicleList = normalizeImportData(data);
+    if (vehicleList.length === 0) {
+      alert("Dieses JSON-Format wird nicht erkannt.");
+      return;
+    }
+
+    let newCount = 0, mergedCount = 0;
+    for (const v of vehicleList) {
+      const info = v.info || {};
+      const vName = v.name;
+      const existingId = Object.keys(vehicles).find(id => (vehicles[id].name || "") === vName);
+
+      let vehicleId;
+      if (existingId) {
+        vehicleId = existingId;
+        mergedCount++;
+      } else {
         const vRef = push(ref(db, userPath("vehicles")));
-        const info = v.vehicle || {};
         await set(vRef, {
-          name: v.name || info.make || "Fahrzeug",
-          make: info.make || "", model: info.model || "", year: info.year || "",
+          name: vName, make: info.make || "", model: info.model || "", year: info.year || "",
           plate: info.plate || "", vin: info.vin || "", engine: info.engine || "",
-          oil: info.oil || "", currentOdo: info.currentOdo || "", notes: info.notes || "",
+          oil: info.oil || "", currentOdo: info.currentOdo || "",
+          asOfDate: info.asOfDate || new Date().toISOString().slice(0,10),
+          notes: info.notes || "", logo: info.logo || "",
         });
-        const list = v.entries || [];
-        for (const e of list) {
-          const eRef = push(ref(db, userPath("entries", vRef.key)));
+        vehicleId = vRef.key;
+        newCount++;
+        for (const e of v.entries) {
+          const eRef = push(ref(db, userPath("entries", vehicleId)));
           await set(eRef, {
             date: e.date || "", odo: e.odo ?? null, service: e.service || "",
-            parts: e.parts || "", brand: e.brand || "", notes: e.notes || "",
-            ts: e.ts || Date.now(),
+            parts: e.parts || "", brand: e.brand || "", notes: e.notes || "", ts: e.ts || Date.now(),
           });
         }
       }
-      alert(`Import abgeschlossen: ${data.vehicles.length} Fahrzeug(e) importiert.`);
-    } else {
-      alert("Dieses JSON-Format wird nicht erkannt.");
+
+      const svcSnap = await get(ref(db, userPath("services", vehicleId)));
+      const existingSvc = Object.values(svcSnap.val() || {}).map(s => s.name);
+      for (const s of v.services) {
+        if (!s.name || existingSvc.includes(s.name)) continue;
+        await set(push(ref(db, userPath("services", vehicleId))), { name: s.name, intervalKm: s.intervalKm || 0, intervalMonths: s.intervalMonths || 0 });
+      }
+
+      const brSnap = await get(ref(db, userPath("brands", vehicleId)));
+      const existingBr = Object.values(brSnap.val() || {}).map(b => (typeof b === "string" ? b : b.name));
+      for (const bName of v.brands) {
+        if (!bName || existingBr.includes(bName)) continue;
+        await set(push(ref(db, userPath("brands", vehicleId))), { name: bName });
+      }
     }
+    alert(`Import abgeschlossen: ${newCount} neue(s) Fahrzeug(e), ${mergedCount} bestehende(s) ergänzt (Service-Arten/Marken).`);
   } catch (e) {
     alert("Import fehlgeschlagen: " + e.message);
   }
