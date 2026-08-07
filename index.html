@@ -603,14 +603,20 @@ $("btn-new-vehicle").addEventListener("click", async () => {
 });
 
 $("btn-delete-vehicle").addEventListener("click", async () => {
-  if (!activeVehicleId) return;
-  const v = vehicles[activeVehicleId];
+  const targetId = activeVehicleId; // ID sofort fest einfrieren, bevor irgendein await läuft
+  if (!targetId) return;
+  const v = vehicles[targetId];
   if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge, Service-Arten und Marken WIRKLICH unwiderruflich löschen?`)) return;
-  await remove(ref(db, userPath("vehicles", activeVehicleId)));
-  await remove(ref(db, userPath("entries", activeVehicleId)));
-  await remove(ref(db, userPath("services", activeVehicleId)));
-  await remove(ref(db, userPath("brands", activeVehicleId)));
-  activeVehicleId = null;
+  // Ein einziger atomarer Multi-Pfad-Löschbefehl statt mehrerer einzelner awaits -
+  // verhindert, dass zwischenzeitliche Firebase-Updates die aktive Fahrzeug-ID verändern
+  // und dadurch versehentlich ein anderes Fahrzeug getroffen wird.
+  const updates = {};
+  updates[`vehicles/${targetId}`] = null;
+  updates[`entries/${targetId}`] = null;
+  updates[`services/${targetId}`] = null;
+  updates[`brands/${targetId}`] = null;
+  await update(ref(db, userPath()), updates);
+  if (activeVehicleId === targetId) activeVehicleId = null;
 });
 
 // ---- Logo Upload ----
