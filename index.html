@@ -36,6 +36,8 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  @media (max-width: 700px) { .table-scroll table { min-width: 640px; } }
   th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; overflow: hidden; text-overflow: ellipsis; }
   th { color: var(--muted); font-weight: 600; font-size: 12px; }
   th.sortable { cursor: pointer; user-select: none; }
@@ -170,6 +172,7 @@
       </div>
       <button id="btn-refresh-overview" class="btn primary">Aktualisieren</button>
     </div>
+    <div class="table-scroll">
     <table style="margin-top:16px;">
       <colgroup>
         <col style="width:16%"><col style="width:9%"><col style="width:9%">
@@ -186,6 +189,7 @@
       </thead>
       <tbody id="overview-tbody"></tbody>
     </table>
+    </div>
     <div id="overview-empty" class="small hidden" style="margin-top:10px;">Keine Service-Arten definiert - im Tab "Stammdaten" anlegen.</div>
   </div>
 
@@ -199,6 +203,7 @@
     <div class="row" style="margin-bottom:14px;">
       <button id="btn-open-add-entry" class="btn primary">+ Eintrag hinzufügen</button>
     </div>
+    <div class="table-scroll">
     <table>
       <colgroup>
         <col style="width:12%"><col style="width:9%"><col style="width:16%">
@@ -217,6 +222,7 @@
       </thead>
       <tbody id="entries-tbody"></tbody>
     </table>
+    </div>
     <div id="entries-empty" class="small hidden" style="margin-top:10px;">Noch keine Einträge für dieses Fahrzeug.</div>
   </div>
 
@@ -280,6 +286,7 @@
       <div style="font-weight:700; font-size:15px;">Service-Arten &amp; Intervalle</div>
       <button id="btn-open-add-service" class="btn primary" style="margin-left:auto;">+ Service-Art hinzufügen</button>
     </div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:45%"><col style="width:20%"><col style="width:20%"><col style="width:15%"></colgroup>
       <thead>
@@ -287,6 +294,7 @@
       </thead>
       <tbody id="services-tbody"></tbody>
     </table>
+    </div>
 
     <div style="font-weight:700; font-size:15px; margin: 24px 0 10px;">Marken (Vorschläge für Einträge)</div>
     <div id="brands-list"></div>
@@ -320,13 +328,16 @@
     </div>
 
     <div style="font-weight:700; font-size:16px; margin:18px 0 8px;">Zusammenfassung</div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:70%"><col style="width:30%"></colgroup>
       <thead><tr><th>Service-Art</th><th>Anzahl</th></tr></thead>
       <tbody id="rpt-summary-tbody"></tbody>
     </table>
+    </div>
 
     <div style="font-weight:700; font-size:16px; margin:22px 0 8px;">Einträge im Zeitraum</div>
+    <div class="table-scroll">
     <table>
       <colgroup>
         <col style="width:12%"><col style="width:9%"><col style="width:16%">
@@ -335,6 +346,7 @@
       <thead><tr><th>Datum</th><th>km</th><th>Service</th><th>Teile</th><th>Marke</th><th>Notizen</th></tr></thead>
       <tbody id="rpt-detail-tbody"></tbody>
     </table>
+    </div>
   </div>
 
   <!-- VERGLEICH -->
@@ -354,32 +366,40 @@
     </div>
 
     <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Gelöschte Fahrzeuge</div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:34%"><col style="width:24%"><col style="width:14%"><col style="width:28%"></colgroup>
       <thead><tr><th>Fahrzeug</th><th>Gelöscht am</th><th>Einträge</th><th></th></tr></thead>
       <tbody id="trash-vehicles-tbody"></tbody>
     </table>
+    </div>
 
     <div style="font-weight:700; font-size:15px; margin:22px 0 8px;">Gelöschte Einträge</div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:22%"><col style="width:14%"><col style="width:20%"><col style="width:16%"><col style="width:28%"></colgroup>
       <thead><tr><th>Fahrzeug</th><th>Datum</th><th>Service</th><th>Gelöscht am</th><th></th></tr></thead>
       <tbody id="trash-entries-tbody"></tbody>
     </table>
+    </div>
 
     <div style="font-weight:700; font-size:15px; margin:22px 0 8px;">Gelöschte Service-Arten</div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:30%"><col style="width:26%"><col style="width:16%"><col style="width:28%"></colgroup>
       <thead><tr><th>Fahrzeug</th><th>Service-Art</th><th>Gelöscht am</th><th></th></tr></thead>
       <tbody id="trash-services-tbody"></tbody>
     </table>
+    </div>
 
     <div style="font-weight:700; font-size:15px; margin:22px 0 8px;">Gelöschte Marken</div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:30%"><col style="width:26%"><col style="width:16%"><col style="width:28%"></colgroup>
       <thead><tr><th>Fahrzeug</th><th>Marke</th><th>Gelöscht am</th><th></th></tr></thead>
       <tbody id="trash-brands-tbody"></tbody>
     </table>
+    </div>
   </div>
 
   <!-- PROTOKOLL -->
@@ -388,11 +408,13 @@
       <button id="btn-refresh-log" class="btn primary">Protokoll aktualisieren</button>
       <span class="small">Zeigt die letzten 200 Änderungen, neueste zuerst.</span>
     </div>
+    <div class="table-scroll">
     <table>
       <colgroup><col style="width:16%"><col style="width:20%"><col style="width:12%"><col style="width:18%"><col style="width:34%"></colgroup>
       <thead><tr><th>Zeitpunkt</th><th>Wer</th><th>Aktion</th><th>Fahrzeug</th><th>Details</th></tr></thead>
       <tbody id="log-tbody"></tbody>
     </table>
+    </div>
   </div>
 </div>
 
@@ -1590,7 +1612,8 @@ async function buildCompare() {
           <span class="kpi">Bald fällig: <b>${warn}</b></span>
           <span class="kpi">Fällig: <b>${due}</b></span>
         </div>
-        <table style="margin-top:12px;">
+        <div class="table-scroll">
+    <table style="margin-top:12px;">
           <thead><tr><th>Service</th><th>Termin</th><th>Rest-Tage</th><th>Rest-km</th></tr></thead>
           <tbody>
             ${dueList.slice(0, 10).map(x => `<tr>
@@ -1601,6 +1624,7 @@ async function buildCompare() {
             </tr>`).join("")}
           </tbody>
         </table>
+    </div>
       </div>
     `);
   }
