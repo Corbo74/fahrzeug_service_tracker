@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fahrzeug Service Tracker</title>
+<style>
+  :root { --bg:#0f172a; --panel:#111827; --panel-2:#0b1220; --text:#e5e7eb; --muted:#94a3b8; --accent:#22c55e; --border:#1f2937; --danger:#ef4444; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: linear-gradient(180deg,var(--bg),#0b1020); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .title { font-size: 24px; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .card { background: linear-gradient(180deg,var(--panel),var(--panel-2)); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select, textarea { width: 100%; background: #0b1220; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+  textarea { min-height: 50px; resize: vertical; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .col { flex: 1; min-width: 140px; }
+  .btn { background: #121a2b; color: var(--text); border: 1px solid var(--border); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .btn:hover { filter: brightness(1.15); }
+  .btn.primary { background: var(--accent); color: #06210f; border-color: transparent; }
+  .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .btn.ghost { background: transparent; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .tabs { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+  .tab-btn { background: #121a2b; border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .tab-btn.active { background: var(--accent); color: #06210f; border-color: transparent; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+  .hidden { display: none !important; }
+  .msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+  .msg.error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #fecaca; }
+  .msg.ok { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.4); color: #bbf7d0; }
+  .veh-select-wrap { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .icon-btn { background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 13px; }
+  .small { font-size: 12px; color: var(--muted); }
+  .center-screen { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
+  .login-card { width: 100%; max-width: 360px; }
+  a { color: #60a5fa; }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="container center-screen hidden">
+  <div class="card login-card">
+    <div class="title">🚗 Fahrzeug Service Tracker</div>
+    <div class="sub" style="margin-bottom:16px;">Anmelden, um deine Fahrzeugdaten zu sehen und zu bearbeiten.</div>
+    <div id="login-msg"></div>
+    <label for="login-email">E-Mail</label>
+    <input id="login-email" type="email" autocomplete="username" style="margin-bottom:10px;" />
+    <label for="login-pass">Passwort</label>
+    <input id="login-pass" type="password" autocomplete="current-password" style="margin-bottom:14px;" />
+    <div class="row">
+      <button id="btn-login" class="btn primary" style="flex:1;">Anmelden</button>
+      <button id="btn-register" class="btn ghost" style="flex:1;">Konto erstellen</button>
+    </div>
+  </div>
+</div>
+
+<div id="app-screen" class="container hidden">
+  <header>
+    <div>
+      <div class="title">🚗 Fahrzeug Service Tracker</div>
+      <div class="sub" id="user-email-label"></div>
+    </div>
+    <div class="row" style="align-items:center;">
+      <button id="btn-import" class="btn">JSON importieren</button>
+      <button id="btn-export" class="btn">JSON exportieren</button>
+      <button id="btn-logout" class="btn ghost">Abmelden</button>
+    </div>
+  </header>
+
+  <div id="global-msg"></div>
+
+  <div class="card">
+    <div class="veh-select-wrap">
+      <div class="col" style="max-width:320px;">
+        <label for="vehicle-select">Fahrzeug</label>
+        <select id="vehicle-select"></select>
+      </div>
+      <button id="btn-new-vehicle" class="btn">+ Neues Fahrzeug</button>
+      <button id="btn-delete-vehicle" class="btn danger">Fahrzeug löschen</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="stammdaten">Fahrzeugdaten</button>
+    <button class="tab-btn" data-tab="eintraege">Einträge</button>
+  </div>
+
+  <!-- Fahrzeugdaten -->
+  <div id="tab-stammdaten" class="tab-panel active card">
+    <div class="row">
+      <div class="col"><label>Name (Anzeige)</label><input id="v-name" /></div>
+      <div class="col"><label>Marke</label><input id="v-make" /></div>
+      <div class="col"><label>Modell</label><input id="v-model" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Baujahr</label><input id="v-year" /></div>
+      <div class="col"><label>Kennzeichen</label><input id="v-plate" /></div>
+      <div class="col"><label>VIN</label><input id="v-vin" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col"><label>Motor</label><input id="v-engine" /></div>
+      <div class="col"><label>Öl-Spezifikation</label><input id="v-oil" /></div>
+      <div class="col"><label>Aktueller km-Stand</label><input id="v-odo" type="number" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col" style="flex:2;"><label>Notizen</label><textarea id="v-notes"></textarea></div>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button id="btn-save-vehicle" class="btn primary">Speichern</button>
+      <span id="save-vehicle-msg" class="small"></span>
+    </div>
+  </div>
+
+  <!-- Einträge -->
+  <div id="tab-eintraege" class="tab-panel card">
+    <div class="row" style="align-items:flex-end;">
+      <div class="col"><label>Datum</label><input id="e-date" type="date" /></div>
+      <div class="col"><label>km-Stand</label><input id="e-odo" type="number" /></div>
+      <div class="col"><label>Service-Art</label>
+        <input id="e-service" list="service-list" placeholder="z.B. Ölwechsel" />
+        <datalist id="service-list">
+          <option value="Ölwechsel"></option>
+          <option value="Luftfilter"></option>
+          <option value="Innenraumfilter"></option>
+          <option value="Bremsflüssigkeit"></option>
+          <option value="Kraftstofffilter"></option>
+          <option value="Bremsen vorne"></option>
+          <option value="Bremsen hinten"></option>
+          <option value="Motor"></option>
+          <option value="Getriebe"></option>
+          <option value="Elektrik"></option>
+          <option value="Karosserie"></option>
+          <option value="Sonstiges"></option>
+        </datalist>
+      </div>
+      <div class="col"><label>Teile</label><input id="e-parts" /></div>
+      <div class="col"><label>Marke</label><input id="e-brand" /></div>
+      <div class="col" style="flex:2;"><label>Notizen</label><input id="e-notes" /></div>
+      <button id="btn-add-entry" class="btn primary">Hinzufügen</button>
+    </div>
+
+    <table style="margin-top:16px;">
+      <thead>
+        <tr>
+          <th>Datum</th><th>km</th><th>Service</th><th>Teile</th><th>Marke</th><th>Notizen</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="entries-tbody"></tbody>
+    </table>
+    <div id="entries-empty" class="small hidden" style="margin-top:10px;">Noch keine Einträge für dieses Fahrzeug.</div>
+  </div>
+</div>
+
+<input type="file" id="import-file-input" accept="application/json" class="hidden" />
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getDatabase, ref, onValue, set, push, remove, update, get, child
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// ---- Firebase-Konfiguration (aus der Firebase-Konsole) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyA3ipj2Ey9abyKkDMECm4CAr8UIEpRUXEw",
+  authDomain: "fahrzeug-service-tracker.firebaseapp.com",
+  databaseURL: "https://fahrzeug-service-tracker-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "fahrzeug-service-tracker",
+  storageBucket: "fahrzeug-service-tracker.firebasestorage.app",
+  messagingSenderId: "156496911392",
+  appId: "1:156496911392:web:b89a5204395b45cf30f045",
+  measurementId: "G-NW6ZS2SH11"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+// ---- State ----
+let currentUser = null;
+let vehicles = {};          // { vehicleId: {..fields..} }
+let activeVehicleId = null;
+let entries = {};           // { entryId: {..fields..} } for active vehicle
+let vehiclesRefUnsub = null;
+let entriesRefUnsub = null;
+
+// ---- DOM refs ----
+const $ = (id) => document.getElementById(id);
+const loginScreen = $("login-screen");
+const appScreen = $("app-screen");
+
+function showMsg(el, text, type) {
+  el.innerHTML = text ? `<div class="msg ${type}">${text}</div>` : "";
+}
+
+// ---------- AUTH ----------
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  if (user) {
+    loginScreen.classList.add("hidden");
+    appScreen.classList.remove("hidden");
+    $("user-email-label").textContent = user.email;
+    subscribeVehicles();
+  } else {
+    appScreen.classList.add("hidden");
+    loginScreen.classList.remove("hidden");
+    if (vehiclesRefUnsub) { vehiclesRefUnsub(); vehiclesRefUnsub = null; }
+    if (entriesRefUnsub) { entriesRefUnsub(); entriesRefUnsub = null; }
+    vehicles = {}; entries = {}; activeVehicleId = null;
+  }
+});
+
+$("btn-login").addEventListener("click", async () => {
+  const email = $("login-email").value.trim();
+  const pass = $("login-pass").value;
+  showMsg($("login-msg"), "", "");
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    showMsg($("login-msg"), "Anmeldung fehlgeschlagen: " + friendlyAuthError(e), "error");
+  }
+});
+
+$("btn-register").addEventListener("click", async () => {
+  const email = $("login-email").value.trim();
+  const pass = $("login-pass").value;
+  showMsg($("login-msg"), "", "");
+  if (!email || pass.length < 6) {
+    showMsg($("login-msg"), "Bitte E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.", "error");
+    return;
+  }
+  try {
+    await createUserWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    showMsg($("login-msg"), "Registrierung fehlgeschlagen: " + friendlyAuthError(e), "error");
+  }
+});
+
+$("btn-logout").addEventListener("click", () => signOut(auth));
+
+function friendlyAuthError(e) {
+  const code = e.code || "";
+  if (code.includes("wrong-password") || code.includes("invalid-credential")) return "E-Mail oder Passwort falsch.";
+  if (code.includes("user-not-found")) return "Kein Konto mit dieser E-Mail gefunden.";
+  if (code.includes("email-already-in-use")) return "Diese E-Mail ist bereits registriert.";
+  if (code.includes("weak-password")) return "Passwort zu schwach (mind. 6 Zeichen).";
+  if (code.includes("invalid-email")) return "Ungültige E-Mail-Adresse.";
+  return e.message || "Unbekannter Fehler.";
+}
+
+// ---------- VEHICLES ----------
+function userPath(...segments) {
+  return ["users", currentUser.uid, ...segments].join("/");
+}
+
+function subscribeVehicles() {
+  const vRef = ref(db, userPath("vehicles"));
+  vehiclesRefUnsub = onValue(vRef, (snap) => {
+    vehicles = snap.val() || {};
+    renderVehicleSelect();
+  });
+}
+
+function renderVehicleSelect() {
+  const sel = $("vehicle-select");
+  const ids = Object.keys(vehicles);
+  sel.innerHTML = "";
+  if (ids.length === 0) {
+    sel.innerHTML = `<option value="">— Kein Fahrzeug —</option>`;
+    activeVehicleId = null;
+    clearVehicleForm();
+    renderEntries();
+    return;
+  }
+  ids.forEach((id) => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = vehicles[id].name || vehicles[id].make || "Fahrzeug";
+    sel.appendChild(opt);
+  });
+  if (!activeVehicleId || !vehicles[activeVehicleId]) {
+    activeVehicleId = ids[0];
+  }
+  sel.value = activeVehicleId;
+  loadVehicleIntoForm(activeVehicleId);
+  subscribeEntries(activeVehicleId);
+}
+
+$("vehicle-select").addEventListener("change", (e) => {
+  activeVehicleId = e.target.value;
+  loadVehicleIntoForm(activeVehicleId);
+  subscribeEntries(activeVehicleId);
+});
+
+function loadVehicleIntoForm(id) {
+  const v = vehicles[id] || {};
+  $("v-name").value = v.name || "";
+  $("v-make").value = v.make || "";
+  $("v-model").value = v.model || "";
+  $("v-year").value = v.year || "";
+  $("v-plate").value = v.plate || "";
+  $("v-vin").value = v.vin || "";
+  $("v-engine").value = v.engine || "";
+  $("v-oil").value = v.oil || "";
+  $("v-odo").value = v.currentOdo || "";
+  $("v-notes").value = v.notes || "";
+}
+
+function clearVehicleForm() {
+  ["v-name","v-make","v-model","v-year","v-plate","v-vin","v-engine","v-oil","v-odo","v-notes"].forEach(id => $(id).value = "");
+}
+
+$("btn-new-vehicle").addEventListener("click", async () => {
+  const name = prompt("Name des neuen Fahrzeugs (z.B. Mercedes S211):");
+  if (!name) return;
+  const vRef = push(ref(db, userPath("vehicles")));
+  await set(vRef, { name, make: "", model: "", year: "", plate: "", vin: "", engine: "", oil: "", currentOdo: "", notes: "" });
+  activeVehicleId = vRef.key;
+});
+
+$("btn-delete-vehicle").addEventListener("click", async () => {
+  if (!activeVehicleId) return;
+  const v = vehicles[activeVehicleId];
+  if (!confirm(`Fahrzeug "${v?.name || ''}" inkl. aller Einträge wirklich löschen?`)) return;
+  await remove(ref(db, userPath("vehicles", activeVehicleId)));
+  await remove(ref(db, userPath("entries", activeVehicleId)));
+  activeVehicleId = null;
+});
+
+$("btn-save-vehicle").addEventListener("click", async () => {
+  if (!activeVehicleId) {
+    showMsg2($("save-vehicle-msg"), "Bitte zuerst ein Fahrzeug anlegen.");
+    return;
+  }
+  const data = {
+    name: $("v-name").value.trim(),
+    make: $("v-make").value.trim(),
+    model: $("v-model").value.trim(),
+    year: $("v-year").value.trim(),
+    plate: $("v-plate").value.trim(),
+    vin: $("v-vin").value.trim(),
+    engine: $("v-engine").value.trim(),
+    oil: $("v-oil").value.trim(),
+    currentOdo: $("v-odo").value.trim(),
+    notes: $("v-notes").value.trim(),
+  };
+  await update(ref(db, userPath("vehicles", activeVehicleId)), data);
+  showMsg2($("save-vehicle-msg"), "Gespeichert ✓");
+  setTimeout(() => showMsg2($("save-vehicle-msg"), ""), 2000);
+});
+
+function showMsg2(el, text) { el.textContent = text || ""; }
+
+// ---------- ENTRIES ----------
+function subscribeEntries(vehicleId) {
+  if (entriesRefUnsub) { entriesRefUnsub(); entriesRefUnsub = null; }
+  if (!vehicleId) { entries = {}; renderEntries(); return; }
+  const eRef = ref(db, userPath("entries", vehicleId));
+  entriesRefUnsub = onValue(eRef, (snap) => {
+    entries = snap.val() || {};
+    renderEntries();
+  });
+}
+
+function renderEntries() {
+  const tbody = $("entries-tbody");
+  tbody.innerHTML = "";
+  const ids = Object.keys(entries);
+  $("entries-empty").classList.toggle("hidden", ids.length !== 0);
+  const sorted = ids.map(id => ({ id, ...entries[id] }))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  sorted.forEach((entry) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(entry.date || "")}</td>
+      <td>${entry.odo != null ? Number(entry.odo).toLocaleString("de-CH") : ""}</td>
+      <td>${escapeHtml(entry.service || "")}</td>
+      <td>${escapeHtml(entry.parts || "")}</td>
+      <td>${escapeHtml(entry.brand || "")}</td>
+      <td>${escapeHtml(entry.notes || "")}</td>
+      <td><button class="icon-btn" data-id="${entry.id}">✕ Löschen</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll(".icon-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Diesen Eintrag löschen?")) return;
+      await remove(ref(db, userPath("entries", activeVehicleId, btn.dataset.id)));
+    });
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+$("btn-add-entry").addEventListener("click", async () => {
+  if (!activeVehicleId) {
+    showMsg($("global-msg"), "Bitte zuerst ein Fahrzeug anlegen oder auswählen.", "error");
+    setTimeout(() => showMsg($("global-msg"), "", ""), 3000);
+    return;
+  }
+  const date = $("e-date").value;
+  const odo = $("e-odo").value;
+  const service = $("e-service").value.trim();
+  if (!date || !service) {
+    showMsg($("global-msg"), "Bitte mindestens Datum und Service-Art angeben.", "error");
+    setTimeout(() => showMsg($("global-msg"), "", ""), 3000);
+    return;
+  }
+  const entry = {
+    date, odo: odo ? Number(odo) : null,
+    service,
+    parts: $("e-parts").value.trim(),
+    brand: $("e-brand").value.trim(),
+    notes: $("e-notes").value.trim(),
+    ts: Date.now(),
+  };
+  const eRef = push(ref(db, userPath("entries", activeVehicleId)));
+  await set(eRef, entry);
+  ["e-date","e-odo","e-service","e-parts","e-brand","e-notes"].forEach(id => $(id).value = "");
+});
+
+// ---------- TABS ----------
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    $("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ---------- IMPORT / EXPORT ----------
+$("btn-export").addEventListener("click", async () => {
+  const vSnap = await get(ref(db, userPath("vehicles")));
+  const eSnap = await get(ref(db, userPath("entries")));
+  const payload = { vehicles: vSnap.val() || {}, entries: eSnap.val() || {} };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "fahrzeug-tracker-export.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$("btn-import").addEventListener("click", () => $("import-file-input").click());
+
+$("import-file-input").addEventListener("change", async (ev) => {
+  const file = ev.target.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  let data;
+  try { data = JSON.parse(text); } catch { alert("Ungültige JSON-Datei."); return; }
+
+  // Erwartet entweder das alte Multi-Fahrzeug-Format { vehicles: [ {name, vehicle:{...}, entries:[...]} ] }
+  // oder bereits das neue Format { vehicles: {...}, entries: {...} }
+  try {
+    if (Array.isArray(data.vehicles)) {
+      // Altes Format vom HTML/JSON-Tracker
+      for (const v of data.vehicles) {
+        const vRef = push(ref(db, userPath("vehicles")));
+        const info = v.vehicle || {};
+        await set(vRef, {
+          name: v.name || info.make || "Fahrzeug",
+          make: info.make || "", model: info.model || "", year: info.year || "",
+          plate: info.plate || "", vin: info.vin || "", engine: info.engine || "",
+          oil: info.oil || "", currentOdo: info.currentOdo || "", notes: info.notes || "",
+        });
+        const list = v.entries || [];
+        for (const e of list) {
+          const eRef = push(ref(db, userPath("entries", vRef.key)));
+          await set(eRef, {
+            date: e.date || "", odo: e.odo ?? null, service: e.service || "",
+            parts: e.parts || "", brand: e.brand || "", notes: e.notes || "",
+            ts: e.ts || Date.now(),
+          });
+        }
+      }
+      alert(`Import abgeschlossen: ${data.vehicles.length} Fahrzeug(e) importiert.`);
+    } else {
+      alert("Dieses JSON-Format wird nicht erkannt.");
+    }
+  } catch (e) {
+    alert("Import fehlgeschlagen: " + e.message);
+  }
+  ev.target.value = "";
+});
+</script>
+</body>
+</html>
