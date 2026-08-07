@@ -1222,6 +1222,7 @@ $("modal-save-entry").addEventListener("click", async () => {
     await logChange("add", "entry", vName, `${date} – ${service}`);
   }
   closeEntryModal();
+  checkDueReminder();
 });
 
 $("modal-delete-entry").addEventListener("click", async () => {
@@ -1236,6 +1237,7 @@ $("modal-delete-entry").addEventListener("click", async () => {
   await remove(ref(db, vEntriesPath(vid, editingEntryId)));
   await logChange("delete", "entry", vName, `${entryData?.date || ""} – ${entryData?.service || ""}`);
   closeEntryModal();
+  checkDueReminder();
 });
 
 // ---------- SERVICES (Stammdaten: Intervalle) ----------
@@ -1304,6 +1306,7 @@ $("modal-save-service").addEventListener("click", async () => {
     await logChange("add", "service", vName, name);
   }
   closeServiceModal();
+  checkDueReminder();
 });
 
 $("modal-delete-service").addEventListener("click", async () => {
@@ -1318,6 +1321,7 @@ $("modal-delete-service").addEventListener("click", async () => {
   await remove(ref(db, vServicesPath(vid, editingServiceId)));
   await logChange("delete", "service", vName, svcData?.name || "");
   closeServiceModal();
+  checkDueReminder();
 });
 
 // ---------- BRANDS ----------
@@ -1468,7 +1472,8 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     $("tab-" + btn.dataset.tab).classList.add("active");
-    if (btn.dataset.tab === "vergleich") buildCompare();
+    if (btn.dataset.tab === "vergleich") { buildCompare(); checkDueReminder(); }
+    if (btn.dataset.tab === "uebersicht") checkDueReminder();
     if (btn.dataset.tab === "report") buildReport();
     if (btn.dataset.tab === "papierkorb") buildTrash();
     if (btn.dataset.tab === "protokoll") buildLog();
