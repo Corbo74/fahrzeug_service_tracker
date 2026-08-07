@@ -906,9 +906,11 @@ function renderVehicleSelect() {
   sel.innerHTML = "";
   if (ids.length === 0) {
     sel.innerHTML = `<option value="">— Kein Fahrzeug —</option>`;
-    activeVehicleId = null;
-    clearVehicleForm();
-    subscribeEntries(null); subscribeServices(null); subscribeBrands(null);
+    if (activeVehicleId !== null) {
+      activeVehicleId = null;
+      clearVehicleForm();
+      subscribeEntries(null); subscribeServices(null); subscribeBrands(null);
+    }
     return;
   }
   ids.forEach((id) => {
@@ -917,9 +919,18 @@ function renderVehicleSelect() {
     opt.textContent = vehicles[id].name || vehicles[id].make || "Fahrzeug";
     sel.appendChild(opt);
   });
+  const previousActive = activeVehicleId;
   if (!activeVehicleId || !vehicles[activeVehicleId]) activeVehicleId = ids[0];
   sel.value = activeVehicleId;
-  onActiveVehicleChanged();
+  if (activeVehicleId !== previousActive) {
+    // Anderes Fahrzeug ist jetzt aktiv - Live-Abos (Einträge/Service-Arten/Marken) neu ausrichten
+    onActiveVehicleChanged();
+  } else {
+    // Gleiches Fahrzeug weiterhin aktiv, aber seine eigenen Daten könnten sich geändert haben
+    // (z.B. Logo/Name durch dich selbst oder einen Mit-Besitzer) - Formular auffrischen,
+    // aber die laufenden Einträge/Service-Arten/Marken-Abos NICHT unnötig neu starten.
+    loadVehicleIntoForm(activeVehicleId);
+  }
 }
 
 $("vehicle-select").addEventListener("change", (e) => {
