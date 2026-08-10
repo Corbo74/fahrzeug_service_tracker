@@ -38,7 +38,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   @media (max-width: 700px) {
-    .table-scroll table { min-width: 640px; }
+    .table-scroll table { min-width: 700px; }
     .table-scroll th:first-child, .table-scroll td:first-child {
       position: sticky; left: 0; background: var(--panel); z-index: 1;
       box-shadow: 2px 0 4px rgba(15,23,42,.08);
@@ -212,8 +212,8 @@
     <div class="table-scroll">
     <table>
       <colgroup>
-        <col style="width:12%"><col style="width:9%"><col style="width:16%">
-        <col style="width:20%"><col style="width:12%"><col style="width:21%"><col style="width:10%">
+        <col style="width:105px"><col style="width:85px"><col style="width:16%">
+        <col style="width:20%"><col style="width:12%"><col style="width:21%"><col style="width:120px">
       </colgroup>
       <thead>
         <tr>
@@ -481,6 +481,18 @@
 </div>
 
 <!-- MODAL: Anleitung / Hilfe -->
+<!-- MODAL: Foto-Galerie (nur Ansicht) -->
+<div id="photo-view-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title">📎 Fotos / Dokumente</div>
+    <div id="photo-view-grid" class="photo-grid"></div>
+    <div class="row" style="margin-top:18px;">
+      <span style="flex:1;"></span>
+      <button id="btn-close-photo-view" class="btn primary">Schliessen</button>
+    </div>
+  </div>
+</div>
+
 <!-- LIGHTBOX: Foto-Vollansicht -->
 <div id="photo-lightbox" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;">
   <img id="photo-lightbox-img" src="" alt="Foto" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:6px;" />
@@ -1182,12 +1194,18 @@ function renderEntries() {
       <td>${escapeHtml(entry.parts || "")}</td>
       <td>${escapeHtml(entry.brand || "")}</td>
       <td>${escapeHtml(entry.notes || "")}</td>
-      <td><button class="icon-btn" data-id="${entry.id}">✎ Bearbeiten${photoCount ? ` (📎${photoCount})` : ""}</button></td>
+      <td class="nowrap">
+        <button class="icon-btn" data-id="${entry.id}">✎ Bearbeiten</button>
+        ${photoCount ? `<button class="icon-btn" data-view-photos="${entry.id}">📎 ${photoCount}</button>` : ""}
+      </td>
     `;
     tbody.appendChild(tr);
   });
-  tbody.querySelectorAll(".icon-btn").forEach((btn) => {
+  tbody.querySelectorAll(".icon-btn[data-id]").forEach((btn) => {
     btn.addEventListener("click", () => openEntryModal(btn.dataset.id));
+  });
+  tbody.querySelectorAll(".icon-btn[data-view-photos]").forEach((btn) => {
+    btn.addEventListener("click", () => openPhotoViewModal(btn.dataset.viewPhotos));
   });
 }
 
@@ -1221,6 +1239,19 @@ function openEntryModal(id) {
   $("entry-modal").classList.remove("hidden");
 }
 function closeEntryModal() { $("entry-modal").classList.add("hidden"); editingEntryId = null; currentEntryPhotos = {}; }
+
+function openPhotoViewModal(entryId) {
+  const photos = entries[entryId]?.photos || {};
+  const grid = $("photo-view-grid");
+  grid.innerHTML = Object.values(photos).map(dataUrl => `
+    <div class="photo-thumb"><img src="${dataUrl}" alt="Foto" /></div>
+  `).join("") || `<div class="small">Keine Fotos vorhanden.</div>`;
+  grid.querySelectorAll("img").forEach(img => {
+    img.addEventListener("click", () => openPhotoLightbox(img.src));
+  });
+  $("photo-view-modal").classList.remove("hidden");
+}
+$("btn-close-photo-view").addEventListener("click", () => $("photo-view-modal").classList.add("hidden"));
 
 function openPhotoLightbox(src) {
   $("photo-lightbox-img").src = src;
